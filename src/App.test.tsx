@@ -92,6 +92,7 @@ describe("Network State dashboard reachability controls", () => {
     expect(screen.getByRole("img", { name: /Latency history chart with 1 response sample/ })).toBeInTheDocument();
     const reliabilityPanel = screen.getByRole("region", { name: "Availability & recovery" });
     expect(within(reliabilityPanel).getAllByText("100.0%").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("region", { name: "Correlated incident timeline" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Probes" }));
     expect(screen.getByRole("button", { name: "Probes" })).toHaveAttribute("aria-pressed", "true");
