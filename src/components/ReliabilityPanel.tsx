@@ -48,7 +48,7 @@ export function ReliabilityPanel({ observations, window }: ReliabilityPanelProps
         <div>
           <span>HTTP availability</span>
           <strong>{formatPercent(metrics.availabilityPercent)}</strong>
-          <small>{metrics.responses} responses / {metrics.attempts} measured attempts</small>
+          <small>{metrics.responses} {metrics.responses === 1 ? "response" : "responses"} / {metrics.attempts} {metrics.attempts === 1 ? "measured attempt" : "measured attempts"}</small>
         </div>
         <div>
           <span>2xx success rate</span>
