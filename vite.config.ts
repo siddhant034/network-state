@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: process.env.GITHUB_ACTIONS ? "/network-state/" : "/",
   test: {
+    include: ["src/**/*.test.{ts,tsx}"],
     environment: "jsdom",
     setupFiles: "./src/test-setup.ts",
     restoreMocks: true
