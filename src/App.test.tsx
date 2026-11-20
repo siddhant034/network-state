@@ -31,7 +31,7 @@ describe("Network State dashboard reachability controls", () => {
     render(<App />);
 
     expect(await screen.findByText("Reachable")).toBeInTheDocument();
-    expect(mockedProbe).toHaveBeenCalledWith("/", { timeoutMs: 5_000 });
+    expect(mockedProbe).toHaveBeenCalledWith(import.meta.env.BASE_URL, { timeoutMs: 5_000 });
     expect(screen.getByText("42 ms")).toBeInTheDocument();
   });
 
@@ -48,6 +48,28 @@ describe("Network State dashboard reachability controls", () => {
     await waitFor(() => {
       expect(mockedProbe).toHaveBeenCalledWith(endpoint, { timeoutMs: 5_000 });
     });
+  });
+
+  it("does not retain a configured endpoint URL in the activity stream", async () => {
+    mockedProbe.mockResolvedValueOnce(reachableResult).mockResolvedValue({
+      status: "network-error",
+      timestamp: 1_800_000_000_001,
+      durationMs: 12,
+      httpStatus: null,
+      detail: "No HTTP response was received. Check the endpoint, DNS, TLS, and CORS configuration."
+    });
+    render(<App />);
+    await screen.findByText("Reachable");
+
+    const endpoint = "https://api.example.test/health?token=private-value";
+    fireEvent.change(screen.getByRole("textbox", { name: "Reachability endpoint URL" }), {
+      target: { value: endpoint }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    await screen.findByText("No response");
+    expect(screen.queryByText(/private-value/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Configured reachability endpoint/)).toBeInTheDocument();
   });
 
   it("lets the user trigger an immediate probe", async () => {

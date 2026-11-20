@@ -5,6 +5,7 @@ import type { NetworkEvent } from "./core/types";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 
 const monitor = createNetworkMonitor();
+const defaultProbeEndpoint = import.meta.env.BASE_URL;
 const formatTime = (value: number) => new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(value);
 const formatAgo = (value: number) => {
   const seconds = Math.max(0, Math.floor((Date.now() - value) / 1000));
@@ -17,8 +18,8 @@ function App() {
   const state = useSyncExternalStore(monitor.subscribe, monitor.getSnapshot, monitor.getSnapshot);
   const [monitoring, setMonitoring] = useState(true);
   const [checking, setChecking] = useState(false);
-  const [endpointDraft, setEndpointDraft] = useState("/");
-  const [endpoint, setEndpoint] = useState("/");
+  const [endpointDraft, setEndpointDraft] = useState(defaultProbeEndpoint);
+  const [endpoint, setEndpoint] = useState(defaultProbeEndpoint);
   const [probeIntervalSeconds, setProbeIntervalSeconds] = useState(30);
   const [probeTimeoutSeconds, setProbeTimeoutSeconds] = useState(5);
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
@@ -131,7 +132,7 @@ function App() {
         <Metric icon={<Gauge />} label="Effective type" value={connection.effectiveType?.toUpperCase() ?? "—"} note="Browser-reported" />
         <Metric icon={<ArrowDown />} label="Downlink" value={connection.downlinkMbps !== null ? `${connection.downlinkMbps} Mbps` : "—"} note="Estimated bandwidth" />
         <Metric icon={<Clock3 />} label="Estimated RTT" value={connection.rttMs !== null ? `${connection.rttMs} ms` : "—"} note="Round-trip time" />
-        <Metric icon={<Zap />} label="Failed requests" value={String(state.failures.length)} note={probeResult ? `Last probe: ${probeResult.durationMs} ms` : state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "Awaiting first probe"} />
+        <Metric icon={<Zap />} label="Probe failures" value={String(state.failures.length)} note={probeResult ? `Last probe: ${probeResult.durationMs} ms` : state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "Awaiting first probe"} />
       </section>
 
       <section className="probe-panel" aria-labelledby="probe-title">
