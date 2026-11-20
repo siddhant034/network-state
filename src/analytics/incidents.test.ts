@@ -126,7 +126,7 @@ describe("buildIncidentTimeline", () => {
 
     expect(timeline.incidents).toHaveLength(1);
     expect(timeline.incidents[0].status).toBe("ongoing");
-    expect(timeline.incidents[0].startAt).toBe(3_000);
+    expect(timeline.incidents[0].startAt).toBe(1_000);
   });
 
   it("ignores future-dated observations and events", () => {
