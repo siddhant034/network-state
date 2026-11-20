@@ -53,6 +53,7 @@ interface MutableIncidentGroup {
   episodes: SourceEpisode[];
   startAt: number;
   lastActivityAt: number;
+  hasOngoingEpisode: boolean;
 }
 
 const DEFAULT_WINDOW_MS = 2 * 60 * 60 * 1_000;
@@ -235,14 +236,16 @@ export function buildIncidentTimeline(
   const groups: MutableIncidentGroup[] = [];
   for (const episode of episodes.sort((left, right) => left.startAt - right.startAt)) {
     const current = groups[groups.length - 1];
-    if (current && episode.startAt <= current.lastActivityAt + correlationWindowMs) {
+    if (current && (current.hasOngoingEpisode || episode.startAt <= current.lastActivityAt + correlationWindowMs)) {
       current.episodes.push(episode);
       current.lastActivityAt = Math.max(current.lastActivityAt, episode.endAt);
+      current.hasOngoingEpisode = current.hasOngoingEpisode || episode.recoveredAt === null;
     } else {
       groups.push({
         episodes: [episode],
         startAt: episode.startAt,
-        lastActivityAt: episode.endAt
+        lastActivityAt: episode.endAt,
+        hasOngoingEpisode: episode.recoveredAt === null
       });
     }
   }
