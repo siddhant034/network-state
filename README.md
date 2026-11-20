@@ -44,7 +44,21 @@ Run checks:
 ```bash
 npm test
 npm run build
+npm run test:e2e
 ```
+
+## Cross-browser and accessibility checks
+
+The Playwright suite runs the dashboard in Chromium, Firefox, and WebKit. It covers the initial reachability flow, monitoring controls, saved lab configuration privacy and replay, lab execution, keyboard skip navigation, and diagnostics downloads. An axe-core smoke audit checks WCAG 2.0 A and WCAG 2.1 A rules on the rendered dashboard.
+
+Install the browser binaries before running the suite locally:
+
+```bash
+npx playwright install chromium firefox webkit
+npm run test:e2e
+```
+
+The automated audit is a baseline, not a complete accessibility certification. Manual keyboard and screen-reader review, plus WCAG AA color-contrast verification, remain release checks.
 
 ## Browser API limitations
 
@@ -85,7 +99,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Exportable JSON diagnostics snapshot, CSV history, redaction, and validated read-only import
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [x] Save and replay named testing-lab configurations (bounded local storage; query strings and fragments stripped)
-- [ ] Cross-browser verification and accessible interaction polish
+- [x] Cross-browser verification (Chromium, Firefox, WebKit) and keyboard/accessibility smoke checks
 - [ ] Public demo deployment
 
 ## License

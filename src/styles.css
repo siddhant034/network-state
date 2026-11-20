@@ -112,3 +112,11 @@
 @media(max-width:850px){.incident-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.incident-toolbar .incident-search{grid-column:1/-1}}
 @media(max-width:700px){.incident-panel{padding:17px;margin-bottom:28px}.incident-heading{flex-direction:column}.incident-card-heading{flex-direction:column}.incident-card-meta{flex-wrap:wrap}.incident-toolbar{grid-template-columns:1fr 1fr}.incident-toolbar .incident-search{grid-column:1/-1}}
 @media(max-width:420px){.incident-toolbar{grid-template-columns:1fr}.incident-toolbar .incident-search{grid-column:auto}.incident-signal{grid-template-columns:8px minmax(0,1fr)}.incident-signal time{grid-column:2}}
+
+
+/* Keyboard access and visible focus */
+.skip-link{position:fixed;z-index:1000;top:12px;left:12px;transform:translateY(-160%);padding:11px 15px;border:1px solid #79c9a4;border-radius:8px;background:#10231d;color:#e6fff1;font-size:12px;font-weight:700;box-shadow:0 8px 28px #0008;transition:transform .15s ease}
+.skip-link:focus{transform:translateY(0)}
+:where(a,button,input,select,textarea,summary):focus-visible{outline:2px solid #83ddb2;outline-offset:3px}
+#main-content:focus{outline:none}
+@media(prefers-reduced-motion:reduce){.skip-link{transition:none}}
