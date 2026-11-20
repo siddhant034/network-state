@@ -98,3 +98,18 @@ test("downloads a JSON diagnostics snapshot", async ({ page }) => {
 
   expect(download.suggestedFilename()).toMatch(/^network-state-.*\.json$/);
 });
+
+test("does not contact third-party origins", async ({ page }) => {
+  const appOrigin = new URL(page.url()).origin;
+  const externalRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (new URL(request.url()).origin !== appOrigin) {
+      externalRequests.push(request.url());
+    }
+  });
+
+  await page.reload();
+  await expect(page.locator(".probe-state")).toContainText("Reachable");
+  expect(externalRequests).toEqual([]);
+});
