@@ -108,7 +108,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 
 ## Dependency maintenance
 
-Dependabot checks npm dependencies weekly and GitHub Actions monthly. CI records the resolved dependency tree and a machine-readable `npm audit` report as a short-lived artifact so security findings can be traced to the exact versions used by that run. The audit report is currently informational while the existing advisory paths and compatible fixed versions are reviewed; it is not a claim that the dependency tree is vulnerability-free.
+Dependabot checks npm dependencies weekly and GitHub Actions monthly. CI records the resolved dependency tree and a machine-readable `npm audit` report as a short-lived artifact so security findings can be traced to the exact versions used by that run. The verification job now fails if the generated audit report contains any known vulnerability or if the report is missing/invalid. The generated lockfile is retained as a short-lived artifact for review; it must be committed and CI switched to `npm ci` before release.
 
 ## License
 
