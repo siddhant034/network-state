@@ -63,7 +63,7 @@ export function ReliabilityPanel({ observations, window }: ReliabilityPanelProps
         <div>
           <span>Median recovery</span>
           <strong>{formatDuration(metrics.medianRecoveryMs)}</strong>
-          <small>{metrics.recoveryCount} recovered outage{metrics.recoveryCount === 1 ? "" : "s"}</small>
+          <small>{metrics.recoveryCount} recovered outage{metrics.recoveryCount === 1 ? "" : "s"} · avg {formatDuration(metrics.averageRecoveryMs)}</small>
         </div>
       </div>
 
@@ -105,7 +105,7 @@ export function ReliabilityPanel({ observations, window }: ReliabilityPanelProps
       )}
 
       <p className="reliability-footnote">
-        HTTP 4xx/5xx responses count as available but not successful. Aborted requests and invalid probe URLs are excluded from rates. Recovery measures time from the first consecutive transport failure to the next HTTP response; sources are tracked independently.
+        Any non-2xx HTTP response counts as available but not successful. Aborted requests and invalid probe URLs are excluded from rates. Recovery measures time from the first consecutive transport failure to the next HTTP response; sources are tracked independently; Fetch and XHR aggregate all observed URLs for each transport.
       </p>
     </section>
   );
