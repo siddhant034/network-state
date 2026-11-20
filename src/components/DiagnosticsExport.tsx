@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from "react";
-import { Archive, Download, FileJson2, FileSpreadsheet, ShieldCheck, Upload } from "lucide-react";
+import { Archive, FileJson2, FileSpreadsheet, ShieldCheck, Upload } from "lucide-react";
 import {
   buildDiagnosticsCsv,
   MAX_DIAGNOSTICS_IMPORT_BYTES,
@@ -54,12 +54,6 @@ export function DiagnosticsExport({
   const exportCsv = () => {
     const filename = "network-state-" + filenameDate(snapshot.exportedAt) + ".csv";
     downloadFile(filename, buildDiagnosticsCsv(snapshot), "text/csv;charset=utf-8");
-  };
-
-  const exportImportedCsv = () => {
-    if (!importedSnapshot) return;
-    const filename = "network-state-imported-" + filenameDate(importedSnapshot.exportedAt) + ".csv";
-    downloadFile(filename, buildDiagnosticsCsv(importedSnapshot), "text/csv;charset=utf-8");
   };
 
   const handleImport = (event: ChangeEvent<HTMLInputElement>) => {
@@ -182,9 +176,6 @@ export function DiagnosticsExport({
           ) : (
             <p className="diagnostics-imported-empty">This snapshot contains no correlated incidents. Its event and request records are still available in the exported report.</p>
           )}
-          <button className="diagnostics-imported-export" type="button" onClick={exportImportedCsv}>
-            <Download size={13} /> Export imported records as CSV
-          </button>
         </div>
       )}
 
