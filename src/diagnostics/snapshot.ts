@@ -37,6 +37,7 @@ export interface DiagnosticsSnapshot {
     includePaths: boolean;
   };
   connection: NetworkState["connection"];
+  consecutiveFailures: number;
   events: NetworkEvent[];
   failures: RequestFailure[];
   probes: ReachabilityProbeResult[];
@@ -114,6 +115,7 @@ export function createDiagnosticsSnapshot(input: DiagnosticsSnapshotInput): Diag
       includePaths
     },
     connection: { ...input.state.connection },
+    consecutiveFailures: input.state.consecutiveFailures,
     events: input.state.events.slice(0, LIMITS.events).map((event) => ({
       ...event,
       title: redactText(event.title, includePaths),
@@ -266,8 +268,8 @@ function isIncident(value: unknown): value is NetworkIncident {
     && isFiniteNumber(value.endAt)
     && isFiniteNumber(value.durationMs)
     && value.durationMs >= 0
-    && Number.isInteger(value.failureCount)
-    && Array.isArray(value.sources)
+    && Number.isInteger(value.failureCount) && (value.failureCount as number) >= 0
+    && Array.isArray(value.sources) && value.sources.length <= 4
     && value.sources.every((source) => isOneOf(source, ["browser", "probe", "fetch", "xhr"]))
     && isArrayOf(value.signals, LIMITS.incidentSignals, isIncidentSignal);
 }
@@ -289,14 +291,14 @@ function isNetworkLabResult(value: unknown): value is NetworkLabResult {
   return isRecord(value)
     && isString(value.id, 200)
     && isString(value.endpointLabel, 255)
-    && Number.isInteger(value.sequence)
+    && Number.isInteger(value.sequence) && (value.sequence as number) >= 1
     && isOneOf(value.status, ["reachable", "http-error", "timeout", "network-error", "simulated-failure", "aborted"])
     && isNullableNumber(value.httpStatus)
     && isFiniteNumber(value.durationMs)
     && value.durationMs >= 0
     && isFiniteNumber(value.timestamp)
-    && Number.isInteger(value.attempts)
-    && isFiniteNumber(value.simulatedLatencyMs)
+    && Number.isInteger(value.attempts) && (value.attempts as number) >= 0
+    && isFiniteNumber(value.simulatedLatencyMs) && value.simulatedLatencyMs >= 0
     && isBoolean(value.simulatedFailure)
     && isBoolean(value.simulationApplied)
     && isString(value.detail);
@@ -317,6 +319,7 @@ function validateSnapshot(value: unknown): value is DiagnosticsSnapshot {
     || !isBoolean(config.includePaths)) return false;
 
   return isConnection(value.connection)
+    && Number.isInteger(value.consecutiveFailures) && (value.consecutiveFailures as number) >= 0 && (value.consecutiveFailures as number) <= 10_000
     && isArrayOf(value.events, LIMITS.events, isEvent)
     && isArrayOf(value.failures, LIMITS.failures, isFailure)
     && isArrayOf(value.probes, LIMITS.probes, isProbe)
@@ -330,7 +333,7 @@ function validateSnapshot(value: unknown): value is DiagnosticsSnapshot {
 
 /** Parse and validate an imported report before it is shown in the UI. */
 export function parseDiagnosticsSnapshot(input: string): { ok: true; snapshot: DiagnosticsSnapshot } | { ok: false; error: string } {
-  if (input.length > MAX_DIAGNOSTICS_IMPORT_BYTES) {
+  if (new TextEncoder().encode(input).byteLength > MAX_DIAGNOSTICS_IMPORT_BYTES) {
     return { ok: false, error: "This snapshot is larger than the 1 MB import limit." };
   }
 
