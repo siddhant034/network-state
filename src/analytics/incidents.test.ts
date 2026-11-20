@@ -58,6 +58,7 @@ describe("buildIncidentTimeline", () => {
   it("starts a separate incident when outages are outside the correlation window", () => {
     const timeline = buildIncidentTimeline([
       observation(1_000, "probe", "network-error"),
+      observation(2_000, "probe", "success"),
       observation(35_001, "fetch", "timeout")
     ], [], { now: 40_000, correlationWindowMs: 30_000 });
 
