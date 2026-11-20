@@ -113,3 +113,16 @@ test("does not contact third-party origins", async ({ page }) => {
   await expect(page.locator(".probe-state")).toContainText("Reachable");
   expect(externalRequests).toEqual([]);
 });
+
+test("keeps request telemetry bounded during a burst", async ({ page }) => {
+  await page.getByRole("button", { name: "Enable monitoring" }).click();
+  await expect(page.getByRole("button", { name: "Stop monitoring" })).toBeVisible();
+
+  await page.evaluate(async () => {
+    await Promise.all(
+      Array.from({ length: 120 }, (_, index) => fetch(`/__network-state-stress/${index}`))
+    );
+  });
+
+  await expect(page.locator(".request-summary")).toContainText("100 requests observed");
+});
