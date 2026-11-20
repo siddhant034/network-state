@@ -106,6 +106,7 @@ describe("runNetworkLab", () => {
       attempts: 1
     });
     expect(fetcher).not.toHaveBeenCalled();
+    expect(results[0].simulationApplied).toBe(true);
   });
 
   it("applies simulated latency through the lab fetch wrapper", async () => {
@@ -117,7 +118,19 @@ describe("runNetworkLab", () => {
     );
 
     expect(delay).toHaveBeenCalledWith(250, expect.any(AbortSignal));
-    expect(results[0]).toMatchObject({ status: "reachable", simulatedLatencyMs: 250 });
+    expect(results[0]).toMatchObject({ status: "reachable", simulatedLatencyMs: 250, simulationApplied: true });
+  });
+
+  it("normalizes result labels and rejects unsafe endpoints supplied directly", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(204));
+    const result = await runNetworkLab([{
+      id: "untrusted-id",
+      url: "https://api.example.test/private/path?token=secret#fragment",
+      label: "private/path?token=secret"
+    }], { ...baseOptions, fetcher });
+    expect(result[0].endpointLabel).toBe("api.example.test");
+    expect(result[0].id).toBe("endpoint-1-1");
+    await expect(runNetworkLab([endpoint("unsafe", "https://user:secret@example.test")], baseOptions)).rejects.toThrow(/without embedded credentials/);
   });
 
   it("rejects unsafe workload sizes and stops scheduling when already aborted", async () => {

@@ -197,7 +197,7 @@ export function NetworkTestLab() {
                   <tr key={result.id}>
                     <th scope="row">{result.endpointLabel}</th>
                     <td>{result.sequence}</td>
-                    <td><span className={"network-lab-result-status " + result.status}>{statusLabel(result)}</span>{(result.simulatedLatencyMs > 0 || result.simulatedFailure) && <small className="network-lab-simulated">SIMULATED</small>}</td>
+                    <td><span className={"network-lab-result-status " + result.status}>{statusLabel(result)}</span>{result.simulationApplied && <small className="network-lab-simulated">SIMULATED</small>}</td>
                     <td>{result.durationMs} ms</td>
                     <td>{result.attempts}</td>
                     <td><time dateTime={new Date(result.timestamp).toISOString()}>{formatTime(result.timestamp)}</time></td>

@@ -30,6 +30,7 @@ export interface NetworkLabResult {
   attempts: number;
   simulatedLatencyMs: number;
   simulatedFailure: boolean;
+  simulationApplied: boolean;
   detail: string;
 }
 
@@ -67,6 +68,7 @@ function defaultDelay(milliseconds: number, signal?: AbortSignal): Promise<void>
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout>;
     const finish = () => {
       signal?.removeEventListener("abort", cancel);
       resolve();
@@ -76,7 +78,7 @@ function defaultDelay(milliseconds: number, signal?: AbortSignal): Promise<void>
       signal?.removeEventListener("abort", cancel);
       reject(abortError());
     };
-    const timer = setTimeout(finish, milliseconds);
+    timer = setTimeout(finish, milliseconds);
     signal?.addEventListener("abort", cancel, { once: true });
   });
 }
@@ -169,6 +171,7 @@ function makeResult(
   attempts: number,
   simulatedLatencyMs: number,
   simulatedFailure: boolean,
+  simulationApplied: boolean,
   detail: string
 ): NetworkLabResult {
   return {
@@ -182,6 +185,7 @@ function makeResult(
     attempts,
     simulatedLatencyMs,
     simulatedFailure,
+    simulationApplied,
     detail
   };
 }
@@ -198,16 +202,18 @@ async function runOne(
   let lastDetail = "No HTTP response was received.";
   let attempts = 0;
   let simulatedFailure = false;
+  let simulationApplied = false;
 
   for (let attempt = 1; attempt <= options.retries + 1; attempt += 1) {
     if (dependencies.signal?.aborted) {
-      return makeResult(endpoint, sequence, "aborted", null, Math.max(0, Math.round(dependencies.now() - startedAt)), attempts, options.simulatedLatencyMs, false, "The test was cancelled.");
+      return makeResult(endpoint, sequence, "aborted", null, Math.max(0, Math.round(dependencies.now() - startedAt)), attempts, options.simulatedLatencyMs, false, simulationApplied, "The test was cancelled.");
     }
 
     attempts = attempt;
     const injectFailure = dependencies.random() < options.simulatedFailureRate / 100;
 
     if (injectFailure) {
+      simulationApplied = true;
       try {
         await dependencies.delay(options.simulatedLatencyMs, dependencies.signal);
       } catch {
@@ -218,6 +224,7 @@ async function runOne(
       lastDetail = "A client-side failure was injected for this test attempt; no request was sent.";
       simulatedFailure = true;
     } else {
+      if (options.simulatedLatencyMs > 0) simulationApplied = true;
       const baseFetcher = dependencies.fetcher ?? globalThis.fetch;
       const delayedFetcher: typeof fetch = async (input, init) => {
         await dependencies.delay(options.simulatedLatencyMs, init?.signal ?? dependencies.signal);
@@ -249,8 +256,36 @@ async function runOne(
     attempts,
     options.simulatedLatencyMs,
     simulatedFailure,
+    simulationApplied,
     lastDetail
   );
+}
+
+function normalizeEndpoints(endpoints: NetworkLabEndpoint[]): NetworkLabEndpoint[] {
+  const seen = new Set<string>();
+  return endpoints.map((endpoint, index) => {
+    let url: URL;
+    try {
+      url = new URL(endpoint.url);
+    } catch {
+      throw new TypeError("Every endpoint must be an absolute HTTP or HTTPS URL without embedded credentials.");
+    }
+
+    if (!isHttpEndpoint(url) || url.username || url.password || !url.hostname) {
+      throw new TypeError("Every endpoint must be an absolute HTTP or HTTPS URL without embedded credentials.");
+    }
+
+    url.hash = "";
+    const normalized = url.toString();
+    if (seen.has(normalized)) throw new TypeError("Each endpoint must be unique.");
+    seen.add(normalized);
+
+    return {
+      id: "endpoint-" + (index + 1),
+      url: normalized,
+      label: url.host
+    };
+  });
 }
 
 /**
@@ -267,6 +302,7 @@ export async function runNetworkLab(
   }
 
   const options = validateOptions(suppliedOptions);
+  const safeEndpoints = normalizeEndpoints(endpoints);
   const dependencies = {
     random: suppliedOptions.random ?? Math.random,
     now: suppliedOptions.now ?? (() => globalThis.performance?.now?.() ?? Date.now()),
@@ -275,7 +311,7 @@ export async function runNetworkLab(
     signal: suppliedOptions.signal
   };
 
-  const jobs = endpoints.flatMap((endpoint) =>
+  const jobs = safeEndpoints.flatMap((endpoint) =>
     Array.from({ length: options.requestsPerEndpoint }, (_, index) => ({
       endpoint,
       sequence: index + 1

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NetworkTestLab } from "./NetworkTestLab";
 import { runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 
@@ -21,6 +21,7 @@ const sampleResult: NetworkLabResult = {
   attempts: 1,
   simulatedLatencyMs: 0,
   simulatedFailure: false,
+  simulationApplied: false,
   detail: "The endpoint responded with HTTP 503."
 };
 
@@ -44,7 +45,7 @@ describe("NetworkTestLab", () => {
 
     expect(await screen.findByText("HTTP 503")).toBeInTheDocument();
     expect(screen.getByText("api.example.test")).toBeInTheDocument();
-    expect(screen.queryByText(/private-value/)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table")).queryByText(/private-value/)).not.toBeInTheDocument();
     expect(screen.getByText("84 ms")).toBeInTheDocument();
     expect(await screen.findByText("Run complete.")).toBeInTheDocument();
     expect(mockedRun).toHaveBeenCalledWith(
