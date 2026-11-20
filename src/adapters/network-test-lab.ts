@@ -217,7 +217,7 @@ async function runOne(
       try {
         await dependencies.delay(options.simulatedLatencyMs, dependencies.signal);
       } catch {
-        return makeResult(endpoint, sequence, "aborted", null, Math.max(0, Math.round(dependencies.now() - startedAt)), attempts, options.simulatedLatencyMs, false, "The test was cancelled.");
+        return makeResult(endpoint, sequence, "aborted", null, Math.max(0, Math.round(dependencies.now() - startedAt)), attempts, options.simulatedLatencyMs, false, simulationApplied, "The test was cancelled.");
       }
       lastStatus = "simulated-failure";
       lastHttpStatus = null;

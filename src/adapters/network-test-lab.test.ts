@@ -121,6 +121,20 @@ describe("runNetworkLab", () => {
     expect(results[0]).toMatchObject({ status: "reachable", simulatedLatencyMs: 250, simulationApplied: true });
   });
 
+  it("can recover after an injected failure and records that simulation was applied", async () => {
+    const randomValues = [0, 1];
+    const fetcher = vi.fn().mockResolvedValue(response(204));
+    const result = await runNetworkLab([endpoint("a", "https://a.example.test/health")], {
+      ...baseOptions,
+      retries: 1,
+      simulatedFailureRate: 50,
+      random: () => randomValues.shift() ?? 1,
+      fetcher
+    });
+    expect(result[0]).toMatchObject({ status: "reachable", attempts: 2, simulatedFailure: false, simulationApplied: true });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("normalizes result labels and rejects unsafe endpoints supplied directly", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(204));
     const result = await runNetworkLab([{
