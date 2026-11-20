@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Globe2, Pause, Play, RadioTower, RefreshCw, ShieldCheck, Wifi, WifiOff, Zap } from "lucide-react";
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
@@ -140,7 +140,7 @@ function App() {
   );
 }
 
-function Metric({ icon, label, value, note }: { icon: React.ReactNode; label: string; value: string; note: string }) {
+function Metric({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note: string }) {
   return <article className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span>{label}</span></div><strong>{value}</strong><small>{note}</small></article>;
 }
 
