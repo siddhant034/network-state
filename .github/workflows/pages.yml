@@ -42,3 +42,42 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Smoke-test the published site and its assets
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node --input-type=module <<'NODE'
+          const configuredUrl = process.env.PAGES_URL;
+          if (!configuredUrl) throw new Error("Pages deployment did not provide a URL");
+          const base = new URL(configuredUrl);
+          if (base.protocol !== "https:") throw new Error("Expected an HTTPS Pages URL");
+
+          const pageResponse = await fetch(base, { redirect: "follow", cache: "no-store" });
+          if (!pageResponse.ok) throw new Error(`Published page returned HTTP ${pageResponse.status}`);
+          const pageUrl = new URL(pageResponse.url);
+          const html = await pageResponse.text();
+          if (!/<title>Network State/i.test(html)) throw new Error("Published HTML is missing the Network State title");
+          if (!/id=["']root["']/.test(html)) throw new Error("Published HTML is missing the application root");
+
+          const assets = [
+            ...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)
+          ].map((match) => new URL(match[1], pageUrl));
+          if (!assets.some((asset) => asset.pathname.endsWith(".js"))) {
+            throw new Error("Published HTML does not reference a JavaScript entry asset");
+          }
+          for (const asset of assets) {
+            if (asset.origin !== pageUrl.origin) {
+              throw new Error(`Unexpected third-party asset origin: ${asset.origin}`);
+            }
+            const response = await fetch(asset, { redirect: "follow", cache: "no-store" });
+            if (!response.ok) throw new Error(`Published asset returned HTTP ${response.status}: ${asset.pathname}`);
+            const type = response.headers.get("content-type") ?? "";
+            if (asset.pathname.endsWith(".js") && !/(?:javascript|ecmascript)/i.test(type)) {
+              throw new Error(`JavaScript asset has unexpected content type: ${type}`);
+            }
+            if (asset.pathname.endsWith(".css") && !/text\/css/i.test(type)) {
+              throw new Error(`CSS asset has unexpected content type: ${type}`);
+            }
+          }
+          console.log(`Pages smoke test passed: ${pageUrl.href} (${assets.length} same-origin assets)`);
+          NODE
