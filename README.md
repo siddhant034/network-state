@@ -51,7 +51,7 @@ npm run build
 
 The app runs diagnostics locally. It does not transmit connection information or request history to an analytics backend. Reachability probes are GET requests with browser credentials omitted, no referrer, and cache disabled. The configured endpoint is not copied into the diagnostic event history; only a generic probe label and outcome are retained locally. A custom cross-origin endpoint must allow this site through CORS. Any HTTP response (including 4xx/5xx) confirms that the endpoint responded; non-2xx responses are shown separately from network failures.
 
-Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests.
+Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer; it is cleared when the page is reloaded.
 
 ## Architecture
 
@@ -70,7 +70,10 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Reliable active reachability probe with configurable endpoint, interval, and timeout
 - [x] Fetch/XHR integration adapter with opt-in instrumentation
 - [x] Latency history and trend visualization (in-memory, bounded, source- and time-filtered)
+- [ ] Request success/failure rates, availability, and recovery analytics
+- [ ] Correlated incident timeline and investigation filters
 - [ ] Exportable diagnostics snapshot
+- [ ] Network testing lab for repeatable endpoint and failure scenarios
 - [ ] Cross-browser verification and accessible interaction polish
 - [ ] Public demo deployment
 
