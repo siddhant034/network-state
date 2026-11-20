@@ -11,7 +11,7 @@ const mockedProbe = vi.mocked(runReachabilityProbe);
 
 const reachableResult = {
   status: "reachable" as const,
-  timestamp: 1_800_000_000_000,
+  timestamp: Date.now(),
   durationMs: 42,
   httpStatus: 204,
   detail: "The endpoint responded successfully with HTTP 204."
@@ -42,7 +42,7 @@ describe("Network State dashboard reachability controls", () => {
 
     expect(await screen.findByText("Reachable")).toBeInTheDocument();
     expect(mockedProbe).toHaveBeenCalledWith(import.meta.env.BASE_URL, expect.objectContaining({ timeoutMs: 5_000, signal: expect.any(AbortSignal) }));
-    expect(screen.getByText("42 ms")).toBeInTheDocument();
+    expect(screen.getAllByText("42 ms").length).toBeGreaterThanOrEqual(2);
   });
 
   it("applies a custom endpoint and probes it", async () => {
@@ -80,6 +80,19 @@ describe("Network State dashboard reachability controls", () => {
     await screen.findByText("No response");
     expect(screen.queryByText(/private-value/)).not.toBeInTheDocument();
     expect(screen.getByText(/Configured reachability endpoint/)).toBeInTheDocument();
+  });
+
+  it("shows response-time analytics from reachability probes", async () => {
+    render(<App />);
+
+    await screen.findByText("Reachable");
+    expect(screen.getByRole("heading", { name: "Latency history" })).toBeInTheDocument();
+    expect(screen.getByText("Median")).toBeInTheDocument();
+    expect(screen.getByText("42 ms")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Latency history chart with 1 response sample/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Probes" }));
+    expect(screen.getByRole("button", { name: "Probes" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("lets the user trigger an immediate probe", async () => {

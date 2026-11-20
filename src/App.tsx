@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Globe2, Pause, Play, RadioTower, RefreshCw, ShieldCheck, Wifi, WifiOff, Zap } from "lucide-react";
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
+import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, summarizeLatency, type LatencySample, type LatencySourceFilter, type LatencyWindow } from "./analytics/latency";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
@@ -26,6 +27,9 @@ function App() {
   const [probeTimeoutSeconds, setProbeTimeoutSeconds] = useState(5);
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
   const [probeHistory, setProbeHistory] = useState<ReachabilityProbeResult[]>([]);
+  const [latencySamples, setLatencySamples] = useState<LatencySample[]>([]);
+  const [latencyWindow, setLatencyWindow] = useState<LatencyWindow>("30m");
+  const [latencySource, setLatencySource] = useState<LatencySourceFilter>("all");
   const [requestMonitoring, setRequestMonitoring] = useState(false);
   const [requestEvents, setRequestEvents] = useState<InstrumentedRequestEvent[]>([]);
   const [instrumentationSupport, setInstrumentationSupport] = useState({ fetch: false, xhr: false });
@@ -45,6 +49,13 @@ function App() {
     const installation = installRequestInstrumentation({
       onRequest(event) {
         setRequestEvents((current) => [event, ...current].slice(0, 100));
+        if (event.outcome === "success" || event.outcome === "http-error") {
+          setLatencySamples((current) => appendLatencySample(current, {
+            timestamp: event.timestamp,
+            durationMs: event.durationMs,
+            source: event.transport
+          }));
+        }
         if (event.outcome === "network-error" || event.outcome === "timeout") {
           monitor.recordRequestFailure({ url: event.url, method: event.method, reason: event.outcome === "timeout" ? "Request timed out." : "No HTTP response was received." });
         } else if (event.outcome === "success" || event.outcome === "http-error") {
@@ -70,6 +81,13 @@ function App() {
       if (result.status === "aborted") return;
       setProbeResult(result);
       setProbeHistory((current) => [result, ...current].slice(0, 20));
+      if (result.status === "reachable" || result.status === "http-error") {
+        setLatencySamples((current) => appendLatencySample(current, {
+          timestamp: result.timestamp,
+          durationMs: result.durationMs,
+          source: "probe"
+        }));
+      }
 
       if (result.status === "reachable" || result.status === "http-error") {
         // An HTTP response confirms the route to the endpoint is working, even
@@ -106,6 +124,13 @@ function App() {
     if (filter === "status") return event.kind === "status" || event.kind === "info";
     return true;
   }), [state.events, filter]);
+
+  const visibleLatencySamples = useMemo(
+    () => filterLatencySamples(latencySamples, latencyWindow, Date.now(), latencySource),
+    [latencySamples, latencyWindow, latencySource]
+  );
+  const latencySummary = useMemo(() => summarizeLatency(visibleLatencySamples), [visibleLatencySamples]);
+  const latencyChartPoints = useMemo(() => buildLatencyChartPoints(visibleLatencySamples), [visibleLatencySamples]);
 
   const connection = state.connection;
   const statusLabel = connection.status === "online" ? "Connected" : connection.status === "offline" ? "Offline" : connection.status === "unstable" ? "Unstable" : "Unknown";
@@ -211,6 +236,58 @@ function App() {
         )}
       </section>
 
+
+      <section className="latency-panel" aria-labelledby="latency-title">
+        <div className="latency-heading">
+          <div>
+            <div className="eyebrow">RESPONSE-TIME ANALYTICS</div>
+            <h2 id="latency-title">Latency history</h2>
+            <p>Track HTTP response times over time, across reachability probes and opt-in page requests.</p>
+          </div>
+          <div className="latency-trend" data-trend={latencySummary.trend}>
+            <span>{latencySummary.trend === "collecting" ? "Collecting baseline" : latencySummary.trend === "steady" ? "Latency steady" : (latencySummary.trend === "slower" ? "Slower" : "Faster") + " by " + Math.abs(latencySummary.changePercent ?? 0).toFixed(0) + "%"}</span>
+          </div>
+        </div>
+        <div className="latency-toolbar">
+          <div className="latency-filter-group" role="group" aria-label="Latency time range">
+            {(["5m", "30m", "2h"] as const).map((range) => (
+              <button key={range} type="button" aria-pressed={latencyWindow === range} className={latencyWindow === range ? "selected" : ""} onClick={() => setLatencyWindow(range)}>
+                {range === "5m" ? "5 min" : range === "30m" ? "30 min" : "2 hours"}
+              </button>
+            ))}
+          </div>
+          <div className="latency-filter-group" role="group" aria-label="Latency source">
+            {(["all", "probes", "requests"] as const).map((source) => (
+              <button key={source} type="button" aria-pressed={latencySource === source} className={latencySource === source ? "selected" : ""} onClick={() => setLatencySource(source)}>
+                {source === "all" ? "All" : source === "probes" ? "Probes" : "Page requests"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="latency-stats">
+          <div><span>Median</span><strong>{latencySummary.medianMs === null ? "—" : Math.round(latencySummary.medianMs) + " ms"}</strong></div>
+          <div><span>95th percentile</span><strong>{latencySummary.p95Ms === null ? "—" : Math.round(latencySummary.p95Ms) + " ms"}</strong></div>
+          <div><span>Average</span><strong>{latencySummary.averageMs === null ? "—" : Math.round(latencySummary.averageMs) + " ms"}</strong></div>
+          <div><span>Samples</span><strong>{latencySummary.count}</strong></div>
+        </div>
+        {visibleLatencySamples.length ? (
+          <div className="latency-chart-wrap">
+            <svg className="latency-chart" viewBox="0 0 640 144" role="img" aria-label={`Latency history chart with ${latencySummary.count} response samples and a median of ${Math.round(latencySummary.medianMs ?? 0)} milliseconds`}>
+              <line x1="12" y1="12" x2="628" y2="12" />
+              <line x1="12" y1="72" x2="628" y2="72" />
+              <line x1="12" y1="132" x2="628" y2="132" />
+              <polyline points={latencyChartPoints} />
+            </svg>
+            <div className="latency-axis"><time>{formatTime(visibleLatencySamples[0].timestamp)}</time><time>{formatTime(visibleLatencySamples[visibleLatencySamples.length - 1].timestamp)}</time></div>
+          </div>
+        ) : (
+          <div className="latency-empty">No HTTP response samples in this range yet. Reachability probes are included automatically; enable page request monitoring to add Fetch and XHR timings.</div>
+        )}
+        <div className="latency-footnote">
+          <span>HTTP responses only · Transport failures remain in the activity stream</span>
+          <span>{latencySummary.count ? "Newest samples first in history" : "No latency data retained yet"}</span>
+        </div>
+      </section>
 
       <section className="request-panel" aria-labelledby="request-title">
         <div className="request-panel-heading">
