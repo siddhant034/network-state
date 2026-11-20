@@ -34,7 +34,7 @@ function App() {
     setChecking(true);
     const startedAt = performance.now();
     try {
-      const response = await fetch(`/favicon.ico?network-state=${Date.now()}`, { cache: "no-store" });
+      const response = await fetch(`/?network-state=${Date.now()}`, { cache: "no-store" });
       const elapsed = Math.round(performance.now() - startedAt);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       monitor.recordRequestSuccess();
@@ -42,13 +42,12 @@ function App() {
       setLastCheck(elapsed);
     } catch (error) {
       monitor.recordRequestFailure({
-        url: "/favicon.ico",
+        url: "/",
         method: "GET",
         reason: error instanceof Error ? error.message : "Network request failed"
       });
       setLastCheck(null);
     } finally {
-      setLastCheck((current) => current);
       setChecking(false);
     }
   };
@@ -103,7 +102,7 @@ function App() {
         <Metric icon={<Gauge />} label="Effective type" value={connection.effectiveType?.toUpperCase() ?? "—"} note="Browser-reported" />
         <Metric icon={<ArrowDown />} label="Downlink" value={connection.downlinkMbps !== null ? `${connection.downlinkMbps} Mbps` : "—"} note="Estimated bandwidth" />
         <Metric icon={<Clock3 />} label="Estimated RTT" value={connection.rttMs !== null ? `${connection.rttMs} ms` : "—"} note="Round-trip time" />
-        <Metric icon={<Zap />} label="Failed requests" value={String(state.failures.length)} note={state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "No active streak"} />
+        <Metric icon={<Zap />} label="Failed requests" value={String(state.failures.length)} note={lastCheck !== null ? `Last probe: ${lastCheck} ms` : state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "No active streak"} />
       </section>
 
       <section className="workspace">
