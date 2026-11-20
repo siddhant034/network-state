@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { ReliabilityPanel } from "./ReliabilityPanel";
 import type { ReliabilityObservation } from "../analytics/reliability";
 
@@ -11,6 +11,8 @@ const observations: ReliabilityObservation[] = [
   { timestamp: now - 2_000, source: "fetch", outcome: "http-error" },
   { timestamp: now - 1_000, source: "fetch", outcome: "success" }
 ];
+
+afterEach(() => cleanup());
 
 describe("ReliabilityPanel", () => {
   it("shows availability, application success, and recovered outages", () => {
