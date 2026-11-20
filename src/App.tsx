@@ -7,6 +7,9 @@ import { appendReliabilityObservation, type ReliabilityObservation } from "./ana
 import { ReliabilityPanel } from "./components/ReliabilityPanel";
 import { IncidentTimeline } from "./components/IncidentTimeline";
 import { NetworkTestLab } from "./components/NetworkTestLab";
+import { DiagnosticsExport } from "./components/DiagnosticsExport";
+import { createDiagnosticsSnapshot } from "./diagnostics/snapshot";
+import type { NetworkLabResult } from "./adapters/network-test-lab";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
@@ -37,6 +40,8 @@ function App() {
   const [latencySource, setLatencySource] = useState<LatencySourceFilter>("all");
   const [requestMonitoring, setRequestMonitoring] = useState(false);
   const [requestEvents, setRequestEvents] = useState<InstrumentedRequestEvent[]>([]);
+  const [networkLabResults, setNetworkLabResults] = useState<NetworkLabResult[]>([]);
+  const [includeDiagnosticPaths, setIncludeDiagnosticPaths] = useState(false);
   const [instrumentationSupport, setInstrumentationSupport] = useState({ fetch: false, xhr: false });
   const activeProbeController = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<"all" | "errors" | "status">("all");
@@ -146,6 +151,22 @@ function App() {
   );
   const latencySummary = useMemo(() => summarizeLatency(visibleLatencySamples), [visibleLatencySamples]);
   const latencyChartPoints = useMemo(() => buildLatencyChartPoints(visibleLatencySamples), [visibleLatencySamples]);
+  const diagnosticsSnapshot = useMemo(() => createDiagnosticsSnapshot({
+    state,
+    monitoring,
+    requestMonitoring,
+    probeEndpoint: endpoint,
+    probeIntervalSeconds,
+    probeTimeoutSeconds,
+    probeHistory,
+    latencySamples,
+    reliabilityObservations,
+    requestEvents,
+    networkLabResults,
+    locale: typeof navigator === "undefined" ? null : navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
+    includePaths: includeDiagnosticPaths
+  }), [state, monitoring, requestMonitoring, endpoint, probeIntervalSeconds, probeTimeoutSeconds, probeHistory, latencySamples, reliabilityObservations, requestEvents, networkLabResults, includeDiagnosticPaths]);
 
   const connection = state.connection;
   const statusLabel = connection.status === "online" ? "Connected" : connection.status === "offline" ? "Offline" : connection.status === "unstable" ? "Unstable" : "Unknown";
@@ -308,7 +329,8 @@ function App() {
 
       <IncidentTimeline observations={reliabilityObservations} events={state.events} window={latencyWindow} />
 
-      <NetworkTestLab />
+      <NetworkTestLab onResultsChange={setNetworkLabResults} />
+      <DiagnosticsExport snapshot={diagnosticsSnapshot} includePaths={includeDiagnosticPaths} onIncludePathsChange={setIncludeDiagnosticPaths} />
 
       <section className="request-panel" aria-labelledby="request-title">
         <div className="request-panel-heading">
