@@ -133,16 +133,19 @@ describe("buildIncidentTimeline", () => {
 
   it("retains ongoing incidents that began before the selected window but excludes old recovered incidents", () => {
     const timeline = buildIncidentTimeline([
-      observation(1_000, "probe", "network-error"),
-      observation(2_000, "fetch", "network-error"),
-      observation(3_000, "xhr", "timeout"),
-      observation(4_000, "probe", "success"),
-      observation(5_000, "fetch", "success")
-    ], [], { now: 100_000, windowMs: 10_000 });
+      observation(50_000, "probe", "network-error"),
+      observation(51_000, "fetch", "network-error"),
+      observation(52_000, "xhr", "timeout"),
+      observation(53_000, "probe", "success"),
+      observation(54_000, "fetch", "success")
+    ], [
+      browserEvent("old-offline", 1_000, "Connection lost"),
+      browserEvent("old-online", 2_000, "Connection restored")
+    ], { now: 100_000, windowMs: 10_000 });
 
     expect(timeline.incidents).toHaveLength(1);
     expect(timeline.incidents[0].status).toBe("ongoing");
-    expect(timeline.incidents[0].startAt).toBe(1_000);
+    expect(timeline.incidents[0].startAt).toBe(50_000);
   });
 
   it("ignores future-dated observations and events", () => {
