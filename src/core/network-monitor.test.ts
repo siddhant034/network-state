@@ -30,6 +30,19 @@ describe("createNetworkMonitor", () => {
     expect(monitor.getSnapshot().consecutiveFailures).toBe(2);
   });
 
+  it("lets a successful HTTP response override the browser's offline hint", () => {
+    const monitor = createNetworkMonitor();
+    monitor.start();
+    window.dispatchEvent(new Event("offline"));
+    expect(monitor.getSnapshot().connection.status).toBe("offline");
+
+    monitor.recordRequestSuccess();
+
+    expect(monitor.getSnapshot().connection.status).toBe("online");
+    expect(monitor.getSnapshot().events[0].title).toBe("Reachability confirmed");
+    monitor.stop();
+  });
+
   it("recovers after a successful request", () => {
     const monitor = createNetworkMonitor({ unstableAfterFailures: 1 });
     monitor.recordRequestFailure({ url: "/api/a", method: "GET", reason: "Timeout" });

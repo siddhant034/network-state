@@ -119,6 +119,11 @@ export function createNetworkMonitor(options: MonitorOptions = {}): NetworkMonit
       }
     },
     recordRequestSuccess() {
+      if (state.connection.status === "offline" || state.connection.status === "unknown") {
+        state = { ...state, consecutiveFailures: 0 };
+        setStatus("online", "Reachability confirmed", "A successful HTTP response was received from the configured endpoint.");
+        return;
+      }
       if (state.consecutiveFailures === 0) return;
       state = { ...state, consecutiveFailures: 0 };
       if (state.connection.status === "unstable") {
