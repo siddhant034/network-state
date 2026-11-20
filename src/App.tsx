@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Globe2, Pause, Play, RadioTower, RefreshCw, ShieldCheck, Wifi, WifiOff, Zap } from "lucide-react";
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
-import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, summarizeLatency, type LatencySourceFilter, type LatencyWindow } from "./analytics/latency";
+import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, summarizeLatency, type LatencySample, type LatencySourceFilter, type LatencyWindow } from "./analytics/latency";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
@@ -27,7 +27,7 @@ function App() {
   const [probeTimeoutSeconds, setProbeTimeoutSeconds] = useState(5);
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
   const [probeHistory, setProbeHistory] = useState<ReachabilityProbeResult[]>([]);
-  const [latencySamples, setLatencySamples] = useState<import("./analytics/latency").LatencySample[]>([]);
+  const [latencySamples, setLatencySamples] = useState<LatencySample[]>([]);
   const [latencyWindow, setLatencyWindow] = useState<LatencyWindow>("30m");
   const [latencySource, setLatencySource] = useState<LatencySourceFilter>("all");
   const [requestMonitoring, setRequestMonitoring] = useState(false);
