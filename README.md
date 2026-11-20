@@ -23,6 +23,7 @@ Network State turns browser network signals into a readable activity stream. It 
 - Separate reporting for successful responses, HTTP errors, timeouts, invalid endpoints, and transport failures.
 - Bounded probe deadlines, request cancellation, and credential-free/no-referrer requests.
 - Opt-in Fetch and XMLHttpRequest instrumentation with response status, transport, method, and duration.
+- Bounded latency history with 5-minute, 30-minute, and 2-hour views, source filters, median, p95, average, and a trend chart.
 - Request instrumentation distinguishes HTTP errors, transport failures, timeouts, and aborts while preserving original request behavior.
 
 ## Development
@@ -56,6 +57,7 @@ Fetch/XHR instrumentation is off by default and starts only after an explicit us
 
 - `src/core`: browser-independent state model and monitoring contract.
 - `src/adapters`: reachability probes and opt-in Fetch/XHR instrumentation.
+- `src/analytics`: bounded response-time history, percentile summaries, trend classification, and chart coordinates.
 - `src/App.tsx`: React dashboard and user interactions.
 - `src/styles.css`: responsive visual system.
 
@@ -67,7 +69,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Request failure ingestion and instability heuristic
 - [x] Reliable active reachability probe with configurable endpoint, interval, and timeout
 - [x] Fetch/XHR integration adapter with opt-in instrumentation
-- [ ] Latency history and trend visualization
+- [x] Latency history and trend visualization (in-memory, bounded, source- and time-filtered)
 - [ ] Exportable diagnostics snapshot
 - [ ] Cross-browser verification and accessible interaction polish
 - [ ] Public demo deployment
