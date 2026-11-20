@@ -147,7 +147,8 @@ describe("diagnostics snapshot", () => {
     const csv = buildDiagnosticsCsv(createDiagnosticsSnapshot(input));
 
     expect(csv.startsWith("\uFEFFrecord_type,timestamp")).toBe(true);
-    expect(csv).toContain("'=HYPERLINK(""https://bad.test"",""open"")");
+    expect(csv).toContain("\"'=HYPERLINK");
+    expect(csv).toContain('\"\"https://bad.test\"\"');
     expect(csv).toContain('"A ""quoted"", multi-line');
     expect(csv).toContain('"api.example.test"');
     expect(csv).not.toContain("token=private");
