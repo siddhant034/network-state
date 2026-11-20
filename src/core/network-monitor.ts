@@ -83,7 +83,7 @@ export function createNetworkMonitor(options: MonitorOptions = {}): NetworkMonit
     getSnapshot: () => state,
     subscribe(listener) {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => { listeners.delete(listener); };
     },
     start() {
       if (started || typeof window === "undefined") return;
