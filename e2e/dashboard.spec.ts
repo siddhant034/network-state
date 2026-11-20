@@ -82,9 +82,16 @@ test("provides a keyboard skip link and a visible focus target", async ({ page }
   await expect(page.getByRole("main")).toBeFocused();
 });
 
-test("passes the automated WCAG A-level accessibility smoke audit", async ({ page }) => {
+test("passes the automated WCAG A and AA accessibility smoke audit", async ({ page }) => {
   const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag21a"])
+    .withTags([
+      "wcag2a",
+      "wcag2aa",
+      "wcag21a",
+      "wcag21aa",
+      "wcag22aa",
+      "best-practice"
+    ])
     .analyze();
 
   expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
