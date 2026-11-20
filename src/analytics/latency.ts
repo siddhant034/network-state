@@ -67,6 +67,13 @@ function percentile(sorted: number[], fraction: number): number {
   return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)];
 }
 
+function median(sorted: number[]): number {
+  const midpoint = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[midpoint - 1] + sorted[midpoint]) / 2
+    : sorted[midpoint];
+}
+
 function average(values: number[]): number {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
@@ -115,7 +122,7 @@ export function summarizeLatency(samples: LatencySample[]): LatencySummary {
     minMs: sorted[0],
     maxMs: sorted[sorted.length - 1],
     averageMs: average(sorted),
-    medianMs: percentile(sorted, 0.5),
+    medianMs: median(sorted),
     p95Ms: percentile(sorted, 0.95),
     trend,
     changePercent
@@ -134,7 +141,7 @@ export function buildLatencyChartPoints(
   const values = samples.map((sample) => sample.durationMs);
   const minimum = Math.min(...values);
   const maximum = Math.max(...values);
-  const spread = maximum - minimum || 1;
+  const spread = maximum - minimum;
   const usableWidth = width - padding * 2;
   const usableHeight = height - padding * 2;
 
@@ -142,7 +149,9 @@ export function buildLatencyChartPoints(
     const x = samples.length === 1
       ? width / 2
       : padding + (index / (samples.length - 1)) * usableWidth;
-    const y = height - padding - ((sample.durationMs - minimum) / spread) * usableHeight;
+    const y = spread === 0
+      ? height / 2
+      : height - padding - ((sample.durationMs - minimum) / spread) * usableHeight;
     return x.toFixed(1) + "," + y.toFixed(1);
   }).join(" ");
 }
