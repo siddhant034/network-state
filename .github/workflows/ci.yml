@@ -9,46 +9,11 @@ permissions:
   contents: read
 
 jobs:
-  prepare-lockfile:
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'chore/reproducible-installs' && github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout the release-candidate branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          persist-credentials: true
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Generate lockfile without lifecycle scripts
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit lockfile to this branch
-        env:
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
-        run: |
-          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && git diff --quiet -- package-lock.json; then
-            echo "Lockfile is already up to date."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: commit reproducible npm lockfile"
-          git push origin "HEAD:${BRANCH_NAME}"
-
   verify:
-    needs: prepare-lockfile
-    if: always() && (needs.prepare-lockfile.result == 'success' || needs.prepare-lockfile.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref == 'chore/reproducible-installs' && github.event.pull_request.head.ref || github.ref }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -74,8 +39,6 @@ jobs:
         run: node -e 'const report = require("./npm-audit.json"); const summary = report.metadata?.vulnerabilities; if (!summary) throw new Error("npm audit did not return a vulnerability summary"); if (summary.total !== 0) { console.error("Dependency audit found vulnerabilities:", summary); process.exit(1); }'
 
   browser-e2e:
-    needs: prepare-lockfile
-    if: always() && (needs.prepare-lockfile.result == 'success' || needs.prepare-lockfile.result == 'skipped')
     name: Browser checks (${{ matrix.browser }})
     runs-on: ubuntu-latest
     strategy:
@@ -85,8 +48,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref == 'chore/reproducible-installs' && github.event.pull_request.head.ref || github.ref }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
