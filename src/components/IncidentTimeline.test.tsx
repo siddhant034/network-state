@@ -18,7 +18,7 @@ describe("IncidentTimeline", () => {
 
     const panel = screen.getByRole("region", { name: "Correlated incident timeline" });
     expect(within(panel).getByText("Correlated network failures")).toBeInTheDocument();
-    expect(within(panel).getByText("Ongoing")).toBeInTheDocument();
+    expect(within(panel).getByText("Ongoing", { selector: "span.incident-status" })).toBeInTheDocument();
     fireEvent.click(within(panel).getByText("Inspect incident timeline"));
     expect(within(panel).getByText("No HTTP response")).toBeInTheDocument();
     expect(within(panel).getByText("Request timed out")).toBeInTheDocument();
