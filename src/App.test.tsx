@@ -54,6 +54,7 @@ describe("Network State dashboard reachability controls", () => {
     render(<App />);
     await screen.findByText("Reachable");
     mockedProbe.mockClear();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Probe now" })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "Probe now" }));
 

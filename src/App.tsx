@@ -23,7 +23,7 @@ function App() {
   const [probeTimeoutSeconds, setProbeTimeoutSeconds] = useState(5);
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
   const [probeHistory, setProbeHistory] = useState<ReachabilityProbeResult[]>([]);
-  const probeInFlight = useRef(false);
+  const activeProbeController = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<"all" | "errors" | "status">("all");
 
   useEffect(() => {
@@ -32,11 +32,15 @@ function App() {
   }, []);
 
   const runProbe = useCallback(async () => {
-    if (probeInFlight.current) return;
-    probeInFlight.current = true;
+    activeProbeController.current?.abort();
+    const controller = new AbortController();
+    activeProbeController.current = controller;
     setChecking(true);
     try {
-      const result = await runReachabilityProbe(endpoint, { timeoutMs: probeTimeoutSeconds * 1000 });
+      const result = await runReachabilityProbe(endpoint, {
+        timeoutMs: probeTimeoutSeconds * 1000,
+        signal: controller.signal
+      });
       if (result.status === "aborted") return;
       setProbeResult(result);
       setProbeHistory((current) => [result, ...current].slice(0, 20));
@@ -54,8 +58,10 @@ function App() {
         });
       }
     } finally {
-      probeInFlight.current = false;
-      setChecking(false);
+      if (activeProbeController.current === controller) {
+        activeProbeController.current = null;
+        setChecking(false);
+      }
     }
   }, [endpoint, probeTimeoutSeconds]);
 
@@ -63,7 +69,10 @@ function App() {
     if (!monitoring) return;
     void runProbe();
     const timer = window.setInterval(() => { void runProbe(); }, probeIntervalSeconds * 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      activeProbeController.current?.abort();
+    };
   }, [monitoring, probeIntervalSeconds, runProbe]);
 
   const events = useMemo(() => state.events.filter((event) => {
