@@ -53,7 +53,7 @@
 .network-lab-config-save input,.network-lab-config-load select{width:100%;min-width:0;height:36px;border:1px solid #2b3945;border-radius:7px;background:#0d151d;color:#d5dfe8;padding:0 10px;font:10px 'DM Mono',monospace;outline:none}
 .network-lab-config-save input:focus,.network-lab-config-load select:focus{border-color:#5d9a80;box-shadow:0 0 0 2px #5d9a8022}
 .network-lab-config-save button,.network-lab-config-load button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 11px;border:1px solid #365848;border-radius:7px;background:#193529;color:#bde8cd;font:600 9px Manrope,sans-serif;white-space:nowrap;cursor:pointer}
-.network-lab-config-load button{border-color:#344756;background:#1a2935;color:#c0d1df}
+.network-lab-config-load button,.network-lab-config-save .network-lab-new-config{border-color:#344756;background:#1a2935;color:#c0d1df}
 .network-lab-config-load .network-lab-delete-config{border-color:#584047;background:#302329;color:#e5b4b1}
 .network-lab-config-save button:disabled,.network-lab-config-load button:disabled{opacity:.4;cursor:not-allowed}
 .network-lab-config-note{margin:0;color:#718293;font-size:8px;line-height:1.6}
