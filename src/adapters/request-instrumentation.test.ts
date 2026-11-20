@@ -31,6 +31,18 @@ describe("installFetchInstrumentation", () => {
     expect(host.fetch).toBe(original);
   });
 
+  it("redacts non-HTTP URL payloads", async () => {
+    const original = vi.fn().mockResolvedValue({ status: 200 } as Response) as unknown as typeof fetch;
+    const host = makeFetch(original);
+    const events: InstrumentedRequestEvent[] = [];
+    const stop = installFetchInstrumentation({ onRequest: (event) => events.push(event) }, host);
+
+    await host.fetch("data:text/plain,private-payload");
+
+    expect(events[0]?.url).toBe("data:[redacted]");
+    stop();
+  });
+
   it("records HTTP errors without treating them as transport failures", async () => {
     const original = vi.fn().mockResolvedValue({ status: 503 } as Response) as unknown as typeof fetch;
     const host = makeFetch(original);
@@ -200,8 +212,8 @@ describe("installXhrInstrumentation", () => {
     xhr.complete(201);
 
     expect(events.map((event) => [event.url, event.outcome])).toEqual([
-      ["http://localhost/first", "aborted"],
-      ["http://localhost/second", "success"]
+      ["http://localhost:3000/first", "aborted"],
+      ["http://localhost:3000/second", "success"]
     ]);
     stop();
   });

@@ -233,7 +233,7 @@ function App() {
           <>
             <div className="request-summary">
               <span>{requestEvents.length} requests observed</span>
-              <span>{requestEvents.filter((event) => event.outcome !== "success").length} non-success responses</span>
+              <span>{requestEvents.filter((event) => event.outcome !== "success").length} non-success outcomes</span>
               <span>{instrumentationSupport.fetch ? "Fetch" : "Fetch unavailable"} · {instrumentationSupport.xhr ? "XHR" : "XHR unavailable"}</span>
             </div>
             <div className="request-list" aria-live="polite">
