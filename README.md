@@ -34,6 +34,8 @@ Network State turns browser network signals into a readable activity stream. It 
 
 ## Development
 
+Requires Node.js 22.12.0 or newer. See the [production release checklist](docs/RELEASE_CHECKLIST.md) for dependency, accessibility, privacy, and GitHub Pages release gates.
+
 ```bash
 npm install
 npm run dev
