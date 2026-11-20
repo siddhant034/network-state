@@ -47,6 +47,10 @@ npm run build
 npm run test:e2e
 ```
 
+## Long-running session safeguards
+
+Telemetry retained by the live dashboard is deliberately bounded: 80 browser events, 30 request failures, 20 reachability results, 100 visible Fetch/XHR events, 240 latency samples, and 500 reliability observations. The network testing lab also caps endpoint count, concurrency, scheduled checks, retries, and named configurations. A sustained-failure unit test exercises thousands of updates against the core and analytics buffers, while a browser test sends a burst of page requests and verifies the UI retains only its configured request-history limit.
+
 ## Cross-browser and accessibility checks
 
 The Playwright suite runs the dashboard in Chromium, Firefox, and WebKit. It covers the initial reachability flow, monitoring controls, saved lab configuration privacy and replay, lab execution, keyboard skip navigation, and diagnostics downloads. An axe-core smoke audit checks WCAG 2.0 A and WCAG 2.1 A rules on the rendered dashboard.
