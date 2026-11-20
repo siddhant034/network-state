@@ -40,7 +40,7 @@ describe("latency analytics", () => {
     ];
 
     expect(filterLatencySamples(history, "5m", now)).toHaveLength(3);
-    expect(filterLatencySamples(history, "5m", now, "probes")).toEqual([history[0], history[3 - 1]]);
+    expect(filterLatencySamples(history, "5m", now, "probes")).toEqual([history[0]]);
     expect(filterLatencySamples(history, "5m", now, "requests")).toEqual([history[1], history[2]]);
     expect(history).toHaveLength(4);
   });
