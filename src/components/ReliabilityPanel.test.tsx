@@ -22,7 +22,7 @@ describe("ReliabilityPanel", () => {
     expect(within(panel).getByText("80.0%")).toBeInTheDocument();
     expect(within(panel).getByText("Reachability probes")).toBeInTheDocument();
     expect(within(panel).getByText("Fetch requests")).toBeInTheDocument();
-    expect(within(panel).getByText(/HTTP 4xx\/5xx responses count as available but not successful/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Any non-2xx HTTP response counts as available but not successful/)).toBeInTheDocument();
   });
 
   it("explains the empty state with em-dash metrics when there are no observations", () => {
