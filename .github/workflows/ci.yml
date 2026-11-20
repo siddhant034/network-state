@@ -37,6 +37,8 @@ jobs:
             npm-audit.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Enforce clean dependency audit
+        run: node -e 'const report = require("./npm-audit.json"); const summary = report.metadata?.vulnerabilities; if (!summary) throw new Error("npm audit did not return a vulnerability summary"); if (summary.total !== 0) { console.error("Dependency audit found vulnerabilities:", summary); process.exit(1); }'
   browser-e2e:
     name: Browser checks (${{ matrix.browser }})
     runs-on: ubuntu-latest
