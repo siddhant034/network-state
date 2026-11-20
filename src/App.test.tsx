@@ -99,6 +99,19 @@ describe("Network State dashboard reachability controls", () => {
     expect(screen.getByRole("button", { name: "Probes" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("offers privacy-aware JSON and CSV diagnostics export", async () => {
+    render(<App />);
+    await screen.findByText("Reachable");
+
+    const panel = screen.getByRole("region", { name: "Export diagnostics" });
+    expect(within(panel).getByRole("button", { name: "Export JSON" })).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+    const paths = within(panel).getByRole("checkbox", { name: /Include URL paths/ });
+    expect(paths).not.toBeChecked();
+    fireEvent.click(paths);
+    expect(paths).toBeChecked();
+  });
+
   it("lets the user trigger an immediate probe", async () => {
     render(<App />);
     await screen.findByText("Reachable");
