@@ -110,7 +110,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 
 ## Dependency maintenance
 
-Dependabot checks npm dependencies weekly and GitHub Actions monthly. CI records the resolved dependency tree and a machine-readable `npm audit` report as a short-lived artifact so security findings can be traced to the exact versions used by that run. The audit report is currently informational while the existing advisory paths and compatible fixed versions are reviewed; it is not a claim that the dependency tree is vulnerability-free.
+Dependabot checks npm dependencies weekly and GitHub Actions monthly. The committed `package-lock.json` pins the dependency tree used by CI and the Pages build; all automated installs use `npm ci`. Run `npm install` only when intentionally adding or updating dependencies, and commit the resulting lockfile with the manifest. CI uploads a short-lived machine-readable `npm audit` report and fails if any known vulnerability is present.
 
 ## License
 
