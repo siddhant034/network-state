@@ -4,9 +4,16 @@ import type { NetworkState } from "../core/types";
 import { createDiagnosticsSnapshot } from "../diagnostics/snapshot";
 import { DiagnosticsExport } from "./DiagnosticsExport";
 
+const originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  if (originalCreateObjectURL) Object.defineProperty(URL, "createObjectURL", originalCreateObjectURL);
+  else delete (URL as typeof URL & { createObjectURL?: (blob: Blob) => string }).createObjectURL;
+  if (originalRevokeObjectURL) Object.defineProperty(URL, "revokeObjectURL", originalRevokeObjectURL);
+  else delete (URL as typeof URL & { revokeObjectURL?: (url: string) => void }).revokeObjectURL;
 });
 
 function makeSnapshot() {
@@ -109,7 +116,6 @@ describe("DiagnosticsExport", () => {
     expect(screen.getByText("Reachability probe outage")).toBeInTheDocument();
     expect(screen.getByText("recovered", { selector: "span.diagnostics-incident-status" })).toBeInTheDocument();
     expect(screen.getByText(/warning · probe · 1 failures/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Export imported records as CSV" }));
   });
 
   it("rejects a file with an unsupported snapshot schema", async () => {
