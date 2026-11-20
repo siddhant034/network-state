@@ -27,6 +27,16 @@ describe("Network State dashboard reachability controls", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps page request instrumentation opt-in and exposes a clear toggle", async () => {
+    render(<App />);
+
+    const enable = screen.getByRole("button", { name: "Enable monitoring" });
+    expect(enable).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(enable);
+    expect(screen.getByRole("button", { name: "Stop monitoring" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Query strings, fragments, headers, and bodies are never recorded/)).toBeInTheDocument();
+  });
+
   it("runs an initial probe and displays its measured result", async () => {
     render(<App />);
 

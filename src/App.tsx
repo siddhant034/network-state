@@ -3,8 +3,10 @@ import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Gl
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
+import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
 const monitor = createNetworkMonitor();
+const nativeFetch = typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : undefined;
 const defaultProbeEndpoint = import.meta.env.BASE_URL;
 const formatTime = (value: number) => new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(value);
 const formatAgo = (value: number) => {
@@ -24,6 +26,9 @@ function App() {
   const [probeTimeoutSeconds, setProbeTimeoutSeconds] = useState(5);
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
   const [probeHistory, setProbeHistory] = useState<ReachabilityProbeResult[]>([]);
+  const [requestMonitoring, setRequestMonitoring] = useState(false);
+  const [requestEvents, setRequestEvents] = useState<InstrumentedRequestEvent[]>([]);
+  const [instrumentationSupport, setInstrumentationSupport] = useState({ fetch: false, xhr: false });
   const activeProbeController = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<"all" | "errors" | "status">("all");
 
@@ -31,6 +36,25 @@ function App() {
     monitor.start();
     return () => monitor.stop();
   }, []);
+
+  useEffect(() => {
+    if (!requestMonitoring) {
+      setInstrumentationSupport({ fetch: false, xhr: false });
+      return;
+    }
+    const installation = installRequestInstrumentation({
+      onRequest(event) {
+        setRequestEvents((current) => [event, ...current].slice(0, 100));
+        if (event.outcome === "network-error" || event.outcome === "timeout") {
+          monitor.recordRequestFailure({ url: event.url, method: event.method, reason: event.outcome === "timeout" ? "Request timed out." : "No HTTP response was received." });
+        } else if (event.outcome === "success" || event.outcome === "http-error") {
+          monitor.recordRequestSuccess();
+        }
+      }
+    });
+    setInstrumentationSupport(installation.supported);
+    return () => installation.stop();
+  }, [requestMonitoring]);
 
   const runProbe = useCallback(async () => {
     activeProbeController.current?.abort();
@@ -40,7 +64,8 @@ function App() {
     try {
       const result = await runReachabilityProbe(endpoint, {
         timeoutMs: probeTimeoutSeconds * 1000,
-        signal: controller.signal
+        signal: controller.signal,
+        fetcher: nativeFetch
       });
       if (result.status === "aborted") return;
       setProbeResult(result);
@@ -132,7 +157,7 @@ function App() {
         <Metric icon={<Gauge />} label="Effective type" value={connection.effectiveType?.toUpperCase() ?? "—"} note="Browser-reported" />
         <Metric icon={<ArrowDown />} label="Downlink" value={connection.downlinkMbps !== null ? `${connection.downlinkMbps} Mbps` : "—"} note="Estimated bandwidth" />
         <Metric icon={<Clock3 />} label="Estimated RTT" value={connection.rttMs !== null ? `${connection.rttMs} ms` : "—"} note="Round-trip time" />
-        <Metric icon={<Zap />} label="Probe failures" value={String(state.failures.length)} note={probeResult ? `Last probe: ${probeResult.durationMs} ms` : state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "Awaiting first probe"} />
+        <Metric icon={<Zap />} label="Connectivity failures" value={String(state.failures.length)} note={probeResult ? `Last probe: ${probeResult.durationMs} ms` : state.consecutiveFailures ? `${state.consecutiveFailures} consecutive` : "Awaiting first probe"} />
       </section>
 
       <section className="probe-panel" aria-labelledby="probe-title">
@@ -183,6 +208,53 @@ function App() {
               </span>
             ))}
           </div>
+        )}
+      </section>
+
+
+      <section className="request-panel" aria-labelledby="request-title">
+        <div className="request-panel-heading">
+          <div>
+            <div className="eyebrow">OPT-IN REQUEST MONITORING</div>
+            <h2 id="request-title">What are your page requests experiencing?</h2>
+            <p>Observe Fetch and XMLHttpRequest calls initiated by this page, without changing their responses.</p>
+          </div>
+          <button
+            className={"request-toggle" + (requestMonitoring ? " enabled" : "")}
+            type="button"
+            aria-pressed={requestMonitoring}
+            onClick={() => setRequestMonitoring((enabled) => !enabled)}
+          >
+            <i />{requestMonitoring ? "Stop monitoring" : "Enable monitoring"}
+          </button>
+        </div>
+        <p className="request-privacy">Opt-in only. Query strings, fragments, headers, and bodies are never recorded. URL paths can still contain identifiers, so enable this only on pages where that is acceptable.</p>
+        {requestMonitoring ? (
+          <>
+            <div className="request-summary">
+              <span>{requestEvents.length} requests observed</span>
+              <span>{requestEvents.filter((event) => event.outcome !== "success").length} non-success responses</span>
+              <span>{instrumentationSupport.fetch ? "Fetch" : "Fetch unavailable"} · {instrumentationSupport.xhr ? "XHR" : "XHR unavailable"}</span>
+            </div>
+            <div className="request-list" aria-live="polite">
+              {requestEvents.length ? requestEvents.slice(0, 6).map((event) => (
+                <article className="request-row" key={event.id}>
+                  <div className="request-row-main">
+                    <span className="request-method">{event.method}</span>
+                    <span className="request-url" title={event.url}>{event.url}</span>
+                    <span className="request-transport">{event.transport.toUpperCase()}</span>
+                  </div>
+                  <div className="request-row-meta">
+                    <span className={"request-outcome " + event.outcome}>{event.outcome === "success" ? "OK" : event.outcome === "http-error" ? "HTTP " + event.status : event.outcome === "timeout" ? "TIMEOUT" : event.outcome === "aborted" ? "ABORTED" : "NETWORK ERROR"}</span>
+                    <span>{event.durationMs} ms</span>
+                    <time dateTime={new Date(event.timestamp).toISOString()}>{formatTime(event.timestamp)}</time>
+                  </div>
+                </article>
+              )) : <div className="request-empty">Waiting for this page to make a Fetch or XHR request.</div>}
+            </div>
+          </>
+        ) : (
+          <div className="request-empty">Page request monitoring is off. Enable it to observe requests made by this page.</div>
         )}
       </section>
 
