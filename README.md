@@ -106,6 +106,10 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Cross-browser verification (Chromium, Firefox, WebKit) and keyboard/accessibility smoke checks
 - [ ] Public demo deployment
 
+## Dependency maintenance
+
+Dependabot checks npm dependencies weekly and GitHub Actions monthly. CI records the resolved dependency tree and a machine-readable `npm audit` report as a short-lived artifact so security findings can be traced to the exact versions used by that run. The audit report is currently informational while the existing advisory paths and compatible fixed versions are reviewed; it is not a claim that the dependency tree is vulnerability-free.
+
 ## License
 
 MIT
