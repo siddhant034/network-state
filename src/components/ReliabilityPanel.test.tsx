@@ -3,12 +3,13 @@ import { render, screen, within } from "@testing-library/react";
 import { ReliabilityPanel } from "./ReliabilityPanel";
 import type { ReliabilityObservation } from "../analytics/reliability";
 
+const now = Date.now();
 const observations: ReliabilityObservation[] = [
-  { timestamp: 1_000, source: "probe", outcome: "success" },
-  { timestamp: 2_000, source: "probe", outcome: "network-error" },
-  { timestamp: 3_000, source: "probe", outcome: "success" },
-  { timestamp: 3_500, source: "fetch", outcome: "http-error" },
-  { timestamp: 4_000, source: "fetch", outcome: "success" }
+  { timestamp: now - 5_000, source: "probe", outcome: "success" },
+  { timestamp: now - 4_000, source: "probe", outcome: "network-error" },
+  { timestamp: now - 3_000, source: "probe", outcome: "success" },
+  { timestamp: now - 2_000, source: "fetch", outcome: "http-error" },
+  { timestamp: now - 1_000, source: "fetch", outcome: "success" }
 ];
 
 describe("ReliabilityPanel", () => {
@@ -18,7 +19,7 @@ describe("ReliabilityPanel", () => {
     const panel = screen.getByRole("region", { name: "Availability & recovery" });
     expect(within(panel).getByText("HTTP availability")).toBeInTheDocument();
     expect(within(panel).getByText("Median recovery")).toBeInTheDocument();
-    expect(within(panel).getByText("50.0%")).toBeInTheDocument();
+    expect(within(panel).getByText("80.0%")).toBeInTheDocument();
     expect(within(panel).getByText("Reachability probes")).toBeInTheDocument();
     expect(within(panel).getByText("Fetch requests")).toBeInTheDocument();
     expect(within(panel).getByText(/HTTP 4xx\/5xx responses count as available but not successful/)).toBeInTheDocument();
@@ -34,7 +35,7 @@ describe("ReliabilityPanel", () => {
 
   it("shows a currently unresolved outage", () => {
     render(<ReliabilityPanel observations={[
-      { timestamp: 1_000, source: "xhr", outcome: "timeout" }
+      { timestamp: Date.now() - 1_000, source: "xhr", outcome: "timeout" }
     ]} window="2h" />);
 
     expect(screen.getByRole("status")).toHaveTextContent(/currently have an unresolved transport outage/);
