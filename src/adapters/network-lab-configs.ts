@@ -87,7 +87,7 @@ function normalizeConfig(value: unknown, stripQueryData: boolean): NormalizedCon
   if (parsed.errors.length > 0 || parsed.endpoints.length === 0) return null;
 
   let removedQueryData = false;
-  const originalLines = endpointInput.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+  const originalLines = endpointInput.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const normalizedEndpoints = parsed.endpoints.map((endpoint, index) => {
     const url = new URL(endpoint.url);
     const originalUrl = new URL(originalLines[index]);
