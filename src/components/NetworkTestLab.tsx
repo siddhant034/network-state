@@ -203,6 +203,14 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
           <button type="button" onClick={handleSaveConfig} disabled={running || !configName.trim() || parsed.errors.length > 0 || parsed.endpoints.length === 0}>
             <Save size={13} /> Save configuration
           </button>
+          <button className="network-lab-new-config" type="button" onClick={() => {
+            setSelectedConfigId("");
+            setConfigName("");
+            setConfigError("");
+            setConfigMessage("Ready to save a new configuration.");
+          }} disabled={running}>
+            New
+          </button>
         </div>
         <div className="network-lab-config-load">
           <label>
