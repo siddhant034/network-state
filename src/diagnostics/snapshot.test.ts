@@ -146,7 +146,7 @@ describe("diagnostics snapshot", () => {
     input.state.events[0].detail = 'A "quoted", multi-line\ndetail';
     const csv = buildDiagnosticsCsv(createDiagnosticsSnapshot(input));
 
-    expect(csv.startsWith("\uFEFFrecord_type,timestamp")).toBe(true);
+    expect(csv.startsWith("\uFEFF\"record_type\",\"timestamp\"")).toBe(true);
     expect(csv).toContain("\"'=HYPERLINK");
     expect(csv).toContain('\"\"https://bad.test\"\"');
     expect(csv).toContain('"A ""quoted"", multi-line');
