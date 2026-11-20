@@ -19,7 +19,7 @@ function statusLabel(result: NetworkLabResult): string {
   return "No response";
 }
 
-export function NetworkTestLab() {
+export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results: NetworkLabResult[]) => void }) {
   const [endpointInput, setEndpointInput] = useState(defaultEndpoint);
   const [requestsPerEndpoint, setRequestsPerEndpoint] = useState(3);
   const [concurrency, setConcurrency] = useState(2);
@@ -41,6 +41,10 @@ export function NetworkTestLab() {
       controllerRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    onResultsChange?.(results);
+  }, [results, onResultsChange]);
 
   const parsed = useMemo(() => parseNetworkLabEndpoints(endpointInput), [endpointInput]);
   const totalRequests = parsed.endpoints.length * requestsPerEndpoint;
