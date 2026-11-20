@@ -107,7 +107,8 @@ describe("DiagnosticsExport", () => {
 
     expect(await screen.findByRole("region", { name: "Imported investigation" })).toBeInTheDocument();
     expect(screen.getByText("Reachability probe outage")).toBeInTheDocument();
-    expect(screen.getByText(/recovered · probe · 1 failures/)).toBeInTheDocument();
+    expect(screen.getByText("recovered", { selector: "span.diagnostics-incident-status" })).toBeInTheDocument();
+    expect(screen.getByText(/warning · probe · 1 failures/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Export imported records as CSV" }));
   });
 
