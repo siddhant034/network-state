@@ -98,11 +98,22 @@ describe("NetworkTestLab", () => {
     expect(stored).toContain("API smoke test");
     expect(stored).not.toContain("private-value");
 
+    fireEvent.click(screen.getByRole("button", { name: "New configuration" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "Staging API" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+    await screen.findByRole("status");
+    const storedConfigs = JSON.parse(window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "[]") as Array<{ name: string }>;
+    expect(storedConfigs).toHaveLength(2);
+
     firstRender.unmount();
     render(<NetworkTestLab />);
-    const saved = JSON.parse(window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "[]") as Array<{ id: string }>;
+    const saved = JSON.parse(window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "[]") as Array<{ id: string; name: string }>;
+    const originalConfig = saved.find((config) => config.name === "API smoke test");
+    expect(originalConfig).toBeDefined();
     fireEvent.change(screen.getByRole("combobox", { name: "Saved configurations" }), {
-      target: { value: saved[0].id }
+      target: { value: originalConfig?.id }
     });
     fireEvent.click(screen.getByRole("button", { name: "Load" }));
 
