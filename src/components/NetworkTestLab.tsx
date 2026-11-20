@@ -170,7 +170,7 @@ export function NetworkTestLab() {
         </div>
       </form>
 
-      {error && <p className="network-lab-error" role="alert">{error}</p>}
+      {(error || parsed.errors.length > 0) && <p className="network-lab-error" role="alert">{error || parsed.errors.join(" ")}</p>}
       {message && <p className="network-lab-message" role="status">{message}</p>}
 
       {(running || results.length > 0) && (

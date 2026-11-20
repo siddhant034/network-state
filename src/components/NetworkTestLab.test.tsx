@@ -46,7 +46,7 @@ describe("NetworkTestLab", () => {
     expect(screen.getByText("api.example.test")).toBeInTheDocument();
     expect(screen.queryByText(/private-value/)).not.toBeInTheDocument();
     expect(screen.getByText("84 ms")).toBeInTheDocument();
-    expect(screen.getByText("Run complete.")).toBeInTheDocument();
+    expect(await screen.findByText("Run complete.")).toBeInTheDocument();
     expect(mockedRun).toHaveBeenCalledWith(
       [expect.objectContaining({ label: "api.example.test" })],
       expect.objectContaining({ requestsPerEndpoint: 3, concurrency: 2, timeoutMs: 5_000 }),

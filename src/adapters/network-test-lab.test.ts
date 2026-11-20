@@ -81,7 +81,7 @@ describe("runNetworkLab", () => {
       .mockResolvedValueOnce(response(503));
     const results = await runNetworkLab(
       [endpoint("a", "https://a.example.test/health"), endpoint("b", "https://b.example.test/health")],
-      { ...baseOptions, retries: 2, fetcher }
+      { ...baseOptions, concurrency: 1, retries: 2, fetcher }
     );
 
     expect(results.find((result) => result.endpointLabel === "a.example.test")?.attempts).toBe(2);
