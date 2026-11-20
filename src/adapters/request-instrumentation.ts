@@ -43,6 +43,10 @@ function normalizeMethod(value: string | undefined): string {
   return (value || "GET").toUpperCase().slice(0, 16);
 }
 
+function isHttpUrl(url: string): boolean {
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
 function shouldCapture(options: RequestInstrumentationOptions, url: string, method: string): boolean {
   if (!options.shouldInstrument) return true;
   try {
@@ -107,7 +111,7 @@ export function installFetchInstrumentation(
       url: sanitizeUrl(rawUrl)
     };
 
-    if (!active || !shouldCapture(options, metadata.url, metadata.method)) {
+    if (!active || !isHttpUrl(metadata.url) || !shouldCapture(options, metadata.url, metadata.method)) {
       return originalFetch.call(host, input, init);
     }
 
@@ -168,9 +172,7 @@ export function installXhrInstrumentation(
     username?: string | null,
     password?: string | null
   ) {
-    const result = async === undefined
-      ? originalOpen.call(this, method, url)
-      : originalOpen.call(this, method, url, async, username, password);
+    const result = originalOpen.call(this, method, url, async ?? true, username, password);
     metadataByRequest.set(this, {
       method: normalizeMethod(method),
       url: sanitizeUrl(url)
@@ -183,7 +185,7 @@ export function installXhrInstrumentation(
     ...args: Parameters<typeof XMLHttpRequest.prototype.send>
   ) {
     const metadata = metadataByRequest.get(this);
-    if (!active || !metadata || !shouldCapture(options, metadata.url, metadata.method)) {
+    if (!active || !metadata || !isHttpUrl(metadata.url) || !shouldCapture(options, metadata.url, metadata.method)) {
       return originalSend.apply(this, args);
     }
 

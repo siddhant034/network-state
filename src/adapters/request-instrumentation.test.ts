@@ -31,7 +31,7 @@ describe("installFetchInstrumentation", () => {
     expect(host.fetch).toBe(original);
   });
 
-  it("redacts non-HTTP URL payloads", async () => {
+  it("ignores non-HTTP URL payloads instead of treating local responses as network activity", async () => {
     const original = vi.fn().mockResolvedValue({ status: 200 } as Response) as unknown as typeof fetch;
     const host = makeFetch(original);
     const events: InstrumentedRequestEvent[] = [];
@@ -39,7 +39,7 @@ describe("installFetchInstrumentation", () => {
 
     await host.fetch("data:text/plain,private-payload");
 
-    expect(events[0]?.url).toBe("data:[redacted]");
+    expect(events).toHaveLength(0);
     stop();
   });
 
