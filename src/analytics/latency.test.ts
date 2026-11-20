@@ -64,6 +64,16 @@ describe("latency analytics", () => {
     });
   });
 
+  it("uses the midpoint average for an even-sized median", () => {
+    const summary = summarizeLatency([
+      sample(1, 10),
+      sample(2, 20),
+      sample(3, 30),
+      sample(4, 40)
+    ]);
+    expect(summary.medianMs).toBe(25);
+  });
+
   it("classifies trend only after enough samples are available", () => {
     expect(summarizeLatency([sample(1, 10), sample(2, 20), sample(3, 30)]).trend).toBe("collecting");
     expect(summarizeLatency([sample(1, 10), sample(2, 10), sample(3, 20), sample(4, 20)]).trend).toBe("slower");
@@ -73,7 +83,7 @@ describe("latency analytics", () => {
 
   it("builds chart points for empty, single and multiple samples", () => {
     expect(buildLatencyChartPoints([])).toBe("");
-    expect(buildLatencyChartPoints([sample(1, 25)])).toBe("320.0,132.0");
+    expect(buildLatencyChartPoints([sample(1, 25)])).toBe("320.0,72.0");
     expect(buildLatencyChartPoints([sample(1, 10), sample(2, 20)])).toBe("12.0,132.0 628.0,12.0");
   });
 });
