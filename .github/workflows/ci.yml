@@ -19,11 +19,24 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
       - name: Run tests
         run: npm test
       - name: Build
         run: npm run build
+      - name: Capture dependency audit and generated lockfile
+        if: always()
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload dependency baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-baseline
+          path: |
+            package-lock.json
+            npm-audit.json
+          if-no-files-found: warn
+          retention-days: 7
   browser-e2e:
     name: Browser checks (${{ matrix.browser }})
     runs-on: ubuntu-latest
@@ -39,7 +52,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
       - name: Install browser
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run browser checks
