@@ -87,16 +87,19 @@ function normalizeConfig(value: unknown, stripQueryData: boolean): NormalizedCon
   if (parsed.errors.length > 0 || parsed.endpoints.length === 0) return null;
 
   let removedQueryData = false;
-  const normalizedEndpoints = parsed.endpoints.map((endpoint) => {
+  const originalLines = endpointInput.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+  const normalizedEndpoints = parsed.endpoints.map((endpoint, index) => {
     const url = new URL(endpoint.url);
-    if (url.search || url.hash) {
-      if (!stripQueryData) throw new TypeError("Saved configuration contains query data.");
+    const originalUrl = new URL(originalLines[index]);
+    if (originalUrl.search || originalUrl.hash) {
+      if (!stripQueryData) return null;
       removedQueryData = true;
-      url.search = "";
-      url.hash = "";
     }
+    url.search = "";
+    url.hash = "";
     return url.toString();
   });
+  if (normalizedEndpoints.some((endpoint) => endpoint === null)) return null;
 
   const normalized = parseNetworkLabEndpoints(normalizedEndpoints.join("\n"));
   if (normalized.errors.length > 0 || normalized.endpoints.length !== parsed.endpoints.length) return null;
