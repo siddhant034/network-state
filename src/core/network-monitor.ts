@@ -20,8 +20,8 @@ const now = () => Date.now();
 const makeId = () => globalThis.crypto?.randomUUID?.() ?? `event-${now()}-${Math.random().toString(36).slice(2)}`;
 
 function readConnection(status: ConnectionSnapshot["status"], since: number): ConnectionSnapshot {
-  const nav = navigator as NavigatorWithConnection;
-  const info = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
+  const nav = typeof navigator === "undefined" ? undefined : navigator as NavigatorWithConnection;
+  const info = nav?.connection ?? nav?.mozConnection ?? nav?.webkitConnection;
   return {
     status,
     effectiveType: info?.effectiveType ?? null,

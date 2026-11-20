@@ -19,7 +19,9 @@ Network State turns browser network signals into a readable activity stream. It 
 - A framework-agnostic monitoring core with subscriptions.
 - Request-failure recording and consecutive-failure instability detection.
 - Bounded event and failure history.
-- A responsive dashboard with a manual same-origin connectivity check.
+- A responsive dashboard with configurable, automatically repeated HTTP reachability probes.
+- Separate reporting for successful responses, HTTP errors, timeouts, invalid endpoints, and transport failures.
+- Bounded probe deadlines, request cancellation, and credential-free/no-referrer requests.
 
 ## Development
 
@@ -44,7 +46,7 @@ npm run build
 
 ## Privacy
 
-The app runs diagnostics locally. It does not transmit connection information or request history to an analytics backend.
+The app runs diagnostics locally. It does not transmit connection information or request history to an analytics backend. Reachability probes are GET requests with browser credentials omitted, no referrer, and cache disabled. The configured endpoint is not copied into the diagnostic event history; only a generic probe label and outcome are retained locally. A custom cross-origin endpoint must allow this site through CORS. Any HTTP response (including 4xx/5xx) confirms that the endpoint responded; non-2xx responses are shown separately from network failures.
 
 ## Architecture
 
@@ -58,7 +60,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 
 - [x] Connectivity state and event timeline foundation
 - [x] Request failure ingestion and instability heuristic
-- [ ] Reliable active reachability probe with configurable endpoint
+- [x] Reliable active reachability probe with configurable endpoint, interval, and timeout
 - [ ] Fetch/XHR integration adapter with opt-in instrumentation
 - [ ] Latency history and trend visualization
 - [ ] Exportable diagnostics snapshot
