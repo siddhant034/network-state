@@ -88,7 +88,7 @@ describe("Network State dashboard reachability controls", () => {
     await screen.findByText("Reachable");
     expect(screen.getByRole("heading", { name: "Latency history" })).toBeInTheDocument();
     expect(screen.getByText("Median")).toBeInTheDocument();
-    expect(screen.getByText("42 ms")).toBeInTheDocument();
+    expect(screen.getAllByText("42 ms").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("img", { name: /Latency history chart with 1 response sample/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Probes" }));
