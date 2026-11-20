@@ -8,6 +8,8 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     environment: "jsdom",
     setupFiles: "./src/test-setup.ts",
+    // Preserve Vitest 2's mock-call history behavior during the major upgrade.
+    clearMocks: false,
     restoreMocks: true
   }
 });
