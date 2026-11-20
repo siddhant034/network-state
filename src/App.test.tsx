@@ -31,7 +31,7 @@ describe("Network State dashboard reachability controls", () => {
     render(<App />);
 
     expect(await screen.findByText("Reachable")).toBeInTheDocument();
-    expect(mockedProbe).toHaveBeenCalledWith(import.meta.env.BASE_URL, { timeoutMs: 5_000 });
+    expect(mockedProbe).toHaveBeenCalledWith(import.meta.env.BASE_URL, expect.objectContaining({ timeoutMs: 5_000, signal: expect.any(AbortSignal) }));
     expect(screen.getByText("42 ms")).toBeInTheDocument();
   });
 
@@ -46,7 +46,7 @@ describe("Network State dashboard reachability controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
-      expect(mockedProbe).toHaveBeenCalledWith(endpoint, { timeoutMs: 5_000 });
+      expect(mockedProbe).toHaveBeenCalledWith(endpoint, expect.objectContaining({ timeoutMs: 5_000, signal: expect.any(AbortSignal) }));
     });
   });
 
