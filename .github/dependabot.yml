@@ -17,7 +17,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
-      day: first-monday
       time: "09:00"
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
