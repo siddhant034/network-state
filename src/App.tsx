@@ -202,7 +202,7 @@ function App() {
           <div className="info-icon"><Globe2 size={18} /></div><div><h3>Browser-native signals</h3><p>Connection type, downlink and RTT are shown only when the browser exposes the Network Information API.</p></div><CircleHelp size={15} className="muted-icon" />
         </div>
         <div className="info-card">
-          <div className="info-icon"><ShieldCheck size={18} /></div><div><h3>Privacy by design</h3><p>Diagnostics run in your browser. No request URLs or connection data are sent to a server.</p></div><CircleHelp size={15} className="muted-icon" />
+          <div className="info-icon"><ShieldCheck size={18} /></div><div><h3>Privacy by design</h3><p>Probes contact only the configured endpoint. Cookies and referrers are omitted, and no diagnostics are sent to an analytics backend.</p></div><CircleHelp size={15} className="muted-icon" />
         </div>
       </section>
       <footer className="footer"><span>NETWORK STATE <b>·</b> BUILT FOR THE UNRELIABLE WEB</span><span>Browser signals are estimates, not guarantees <ArrowUpRight size={12} /></span></footer>
