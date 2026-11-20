@@ -92,7 +92,7 @@ describe("NetworkTestLab", () => {
     fireEvent.change(screen.getByLabelText("Concurrency"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/query strings and fragments were removed/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Query strings and fragments were removed/i);
     expect(screen.getByRole("textbox", { name: "Test endpoints" })).toHaveValue("https://api.example.test/health");
     const stored = window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "";
     expect(stored).toContain("API smoke test");
