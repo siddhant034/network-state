@@ -66,6 +66,21 @@ describe("buildIncidentTimeline", () => {
     expect(timeline.incidents[1].sources).toEqual(["probe"]);
   });
 
+  it("treats a later source failure as correlated while an earlier outage remains open", () => {
+    const timeline = buildIncidentTimeline([
+      observation(1_000, "probe", "timeout"),
+      observation(40_000, "fetch", "network-error")
+    ], [], { now: 50_000, correlationWindowMs: 30_000 });
+
+    expect(timeline.incidents).toHaveLength(1);
+    expect(timeline.incidents[0]).toMatchObject({
+      status: "ongoing",
+      sources: ["fetch", "probe"],
+      startAt: 1_000,
+      durationMs: 49_000
+    });
+  });
+
   it("treats browser offline and online transitions as a critical incident", () => {
     const timeline = buildIncidentTimeline([], [
       browserEvent("offline-1", 1_000, "Connection lost"),
