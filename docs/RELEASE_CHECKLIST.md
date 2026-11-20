@@ -11,13 +11,13 @@ This checklist is intentionally separate from feature completion. A passing CI r
 
 ## 2. Reproducible dependencies and security
 
-- [ ] Commit the generated npm lockfile and switch every CI install step from `npm install` to `npm ci`.
+- [ ] Integrate the committed npm lockfile and `npm ci` workflows from PR #14 into `main`.
 - [ ] Keep the dependency audit gate enabled; release requires a clean audit.
 - [ ] Review Dependabot updates and GitHub Actions updates before merging them.
 - [ ] Run the production build and unit tests using Node.js 22.12.0 or newer.
 - [ ] Re-check the dependency audit immediately before tagging a release.
 
-The dependency baseline workflow currently captures the resolved lockfile and `npm audit --json` output as a short-lived artifact. The lockfile must still be committed to the repository before release so future installs use the exact reviewed dependency tree.
+PR #14 commits the resolved `package-lock.json` and switches both CI and the Pages build to `npm ci`. Keep this gate open until that change is integrated into `main`; the audit JSON remains available as a short-lived artifact for each CI run.
 
 ## 3. Browser and accessibility verification
 
