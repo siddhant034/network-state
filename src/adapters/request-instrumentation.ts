@@ -163,11 +163,12 @@ export function installXhrInstrumentation(
     this: XMLHttpRequest,
     ...args: Parameters<typeof XMLHttpRequest.prototype.open>
   ) {
+    const result = originalOpen.apply(this, args);
     metadataByRequest.set(this, {
       method: normalizeMethod(args[0]),
       url: sanitizeUrl(args[1])
     });
-    return originalOpen.apply(this, args);
+    return result;
   };
 
   const patchedSend: typeof XMLHttpRequest.prototype.send = function (
@@ -192,7 +193,7 @@ export function installXhrInstrumentation(
       xhr.removeEventListener("abort", onAbort);
       xhr.removeEventListener("loadend", onLoadEnd);
       pendingCleanups.delete(cleanup);
-      metadataByRequest.delete(xhr);
+      if (metadataByRequest.get(xhr) === metadata) metadataByRequest.delete(xhr);
     };
     const onLoadEnd: EventListener = () => {
       cleanup();

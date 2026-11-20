@@ -117,6 +117,26 @@ class FakeXhr extends EventTarget {
   }
 }
 
+class ReopeningFakeXhr extends FakeXhr {
+  private pending = false;
+  open(method: string, url: string | URL): void {
+    if (this.pending) {
+      this.dispatchEvent(new Event("abort"));
+      this.dispatchEvent(new Event("loadend"));
+      this.pending = false;
+    }
+    super.open(method, url);
+  }
+  send(body?: Document | XMLHttpRequestBodyInit | null): void {
+    this.pending = true;
+    super.send(body);
+  }
+  complete(status: number): void {
+    this.pending = false;
+    super.complete(status);
+  }
+}
+
 describe("installXhrInstrumentation", () => {
   it("records HTTP responses and restores the original prototype methods", () => {
     const originalOpen = FakeXhr.prototype.open;
@@ -162,6 +182,27 @@ describe("installXhrInstrumentation", () => {
     xhr.fail(kind);
 
     expect(events[0]?.outcome).toBe(outcome);
+    stop();
+  });
+
+  it("keeps metadata correct when open aborts an earlier in-flight request", () => {
+    const events: InstrumentedRequestEvent[] = [];
+    const stop = installXhrInstrumentation(
+      { onRequest: (event) => events.push(event) },
+      ReopeningFakeXhr as unknown as typeof XMLHttpRequest
+    );
+    const xhr = new ReopeningFakeXhr();
+
+    xhr.open("GET", "/first");
+    xhr.send();
+    xhr.open("POST", "/second");
+    xhr.send();
+    xhr.complete(201);
+
+    expect(events.map((event) => [event.url, event.outcome])).toEqual([
+      ["http://localhost/first", "aborted"],
+      ["http://localhost/second", "success"]
+    ]);
     stop();
   });
 
