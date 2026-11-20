@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Activity, FlaskConical, Play, Square } from "lucide-react";
+import { Activity, FlaskConical, FolderOpen, Play, Save, Square, Trash2 } from "lucide-react";
+import { deleteNetworkLabConfig, loadSavedNetworkLabConfigs, saveNetworkLabConfig } from "../adapters/network-lab-configs";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 import "./NetworkTestLab.css";
 
@@ -31,6 +32,11 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [savedConfigs, setSavedConfigs] = useState(loadSavedNetworkLabConfigs);
+  const [configName, setConfigName] = useState("");
+  const [selectedConfigId, setSelectedConfigId] = useState("");
+  const [configMessage, setConfigMessage] = useState("");
+  const [configError, setConfigError] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
@@ -102,6 +108,74 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
 
   const cancelRun = () => controllerRef.current?.abort();
 
+  const handleSaveConfig = () => {
+    const id = selectedConfigId || (
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : "lab-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8)
+    );
+    const saved = saveNetworkLabConfig({
+      id,
+      name: configName,
+      endpointInput,
+      requestsPerEndpoint,
+      concurrency,
+      timeoutSeconds,
+      retries,
+      simulatedLatencyMs: simulatedLatency,
+      simulatedFailureRate,
+      updatedAt: Date.now()
+    });
+
+    if (!saved.ok) {
+      setConfigError(saved.error);
+      setConfigMessage("");
+      return;
+    }
+
+    setSavedConfigs(saved.configs);
+    setSelectedConfigId(saved.saved.id);
+    setConfigName(saved.saved.name);
+    setEndpointInput(saved.saved.endpointInput);
+    setConfigError("");
+    setConfigMessage(saved.removedQueryData
+      ? "Configuration saved on this device. Query strings and fragments were removed."
+      : "Configuration saved on this device.");
+  };
+
+  const handleLoadConfig = () => {
+    const config = savedConfigs.find((item) => item.id === selectedConfigId);
+    if (!config) return;
+    setEndpointInput(config.endpointInput);
+    setRequestsPerEndpoint(config.requestsPerEndpoint);
+    setConcurrency(config.concurrency);
+    setTimeoutSeconds(config.timeoutSeconds);
+    setRetries(config.retries);
+    setSimulatedLatency(config.simulatedLatencyMs);
+    setSimulatedFailureRate(config.simulatedFailureRate);
+    setConfigName(config.name);
+    setResults([]);
+    setError("");
+    setMessage("");
+    setConfigError("");
+    setConfigMessage("Loaded “" + config.name + "”. Run the test when you are ready.");
+  };
+
+  const handleDeleteConfig = () => {
+    if (!selectedConfigId) return;
+    const deleted = deleteNetworkLabConfig(selectedConfigId);
+    if (!deleted.ok) {
+      setConfigError(deleted.error);
+      setConfigMessage("");
+      return;
+    }
+    setSavedConfigs(deleted.configs);
+    setSelectedConfigId("");
+    setConfigName("");
+    setConfigError("");
+    setConfigMessage("Saved configuration deleted from this device.");
+  };
+
   return (
     <section className="network-lab-panel" aria-labelledby="network-lab-title" role="region">
       <div className="network-lab-heading">
@@ -111,6 +185,51 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
           <p>Compare endpoint reachability under a bounded, repeatable request workload.</p>
         </div>
         <div className="network-lab-mark" aria-hidden="true"><Activity size={20} /></div>
+      </div>
+
+      <div className="network-lab-configs" aria-label="Saved testing configurations">
+        <div className="network-lab-config-save">
+          <label>
+            <span>Configuration name</span>
+            <input
+              aria-label="Configuration name"
+              value={configName}
+              onChange={(event) => setConfigName(event.target.value)}
+              maxLength={48}
+              placeholder="e.g. Production API checks"
+              disabled={running}
+            />
+          </label>
+          <button type="button" onClick={handleSaveConfig} disabled={running || !configName.trim() || parsed.errors.length > 0 || parsed.endpoints.length === 0}>
+            <Save size={13} /> Save configuration
+          </button>
+          <button className="network-lab-new-config" type="button" onClick={() => {
+            setSelectedConfigId("");
+            setConfigName("");
+            setConfigError("");
+            setConfigMessage("Ready to save a new configuration.");
+          }} disabled={running}>
+            New configuration
+          </button>
+        </div>
+        <div className="network-lab-config-load">
+          <label>
+            <span>Saved configurations</span>
+            <select aria-label="Saved configurations" value={selectedConfigId} onChange={(event) => setSelectedConfigId(event.target.value)} disabled={running || savedConfigs.length === 0}>
+              <option value="">Choose a saved configuration</option>
+              {savedConfigs.map((config) => <option key={config.id} value={config.id}>{config.name}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}>
+            <FolderOpen size={13} /> Load
+          </button>
+          <button className="network-lab-delete-config" type="button" onClick={handleDeleteConfig} disabled={running || !selectedConfigId}>
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+        {configError && <p className="network-lab-error" role="alert">{configError}</p>}
+        {configMessage && <p className="network-lab-message" role="status">{configMessage}</p>}
+        <p className="network-lab-config-note">Saved configurations stay in this browser only. Query strings and fragments are removed before saving; endpoint paths remain and may contain identifiers.</p>
       </div>
 
       <form className="network-lab-form" onSubmit={(event) => { void handleSubmit(event); }}>
@@ -214,7 +333,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
       )}
 
       {!running && results.length === 0 && <div className="network-lab-empty">Configure one or more endpoints and run a test to compare response availability and timing.</div>}
-      <p className="network-lab-footnote">Requests are credential-free GETs. Use only endpoints you own or are authorized to test; cross-origin endpoints must permit this site through CORS. Simulation affects only these lab requests—it does not throttle other browser traffic. Endpoint paths and query strings are not retained in result rows.</p>
+      <p className="network-lab-footnote">Requests are credential-free GETs. Use only endpoints you own or are authorized to test; cross-origin endpoints must permit this site through CORS. Simulation affects only these lab requests—it does not throttle other browser traffic. Endpoint paths and query strings are not retained in result rows. Named configurations are stored locally in this browser; query strings and fragments are stripped, but saved paths may contain identifiers.</p>
     </section>
   );
 }
