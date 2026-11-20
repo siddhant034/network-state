@@ -11,9 +11,9 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   if (originalCreateObjectURL) Object.defineProperty(URL, "createObjectURL", originalCreateObjectURL);
-  else delete (URL as typeof URL & { createObjectURL?: (blob: Blob) => string }).createObjectURL;
+  else Reflect.deleteProperty(URL, "createObjectURL");
   if (originalRevokeObjectURL) Object.defineProperty(URL, "revokeObjectURL", originalRevokeObjectURL);
-  else delete (URL as typeof URL & { revokeObjectURL?: (url: string) => void }).revokeObjectURL;
+  else Reflect.deleteProperty(URL, "revokeObjectURL");
 });
 
 function makeSnapshot() {
