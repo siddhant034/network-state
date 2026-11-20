@@ -42,7 +42,7 @@ describe("Network State dashboard reachability controls", () => {
 
     expect(await screen.findByText("Reachable")).toBeInTheDocument();
     expect(mockedProbe).toHaveBeenCalledWith(import.meta.env.BASE_URL, expect.objectContaining({ timeoutMs: 5_000, signal: expect.any(AbortSignal) }));
-    expect(screen.getByText("42 ms")).toBeInTheDocument();
+    expect(screen.getAllByText("42 ms").length).toBeGreaterThanOrEqual(2);
   });
 
   it("applies a custom endpoint and probes it", async () => {
