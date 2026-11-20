@@ -55,6 +55,19 @@ describe("NetworkTestLab", () => {
     );
   });
 
+  it("publishes completed lab results to the parent diagnostics session", async () => {
+    const onResultsChange = vi.fn();
+    mockedRun.mockImplementation(async (_endpoints, _options, onResult) => {
+      onResult?.(sampleResult);
+      return [sampleResult];
+    });
+    render(<NetworkTestLab onResultsChange={onResultsChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Run test" }));
+    await screen.findByText("HTTP 503");
+    await waitFor(() => expect(onResultsChange).toHaveBeenLastCalledWith([sampleResult]));
+  });
+
   it("prevents a run when endpoint input contains credentials", async () => {
     render(<NetworkTestLab />);
     fireEvent.change(screen.getByRole("textbox", { name: "Test endpoints" }), {
