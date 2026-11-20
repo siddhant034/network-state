@@ -359,7 +359,7 @@ export function parseDiagnosticsSnapshot(input: string): { ok: true; snapshot: D
 
 function csvCell(value: unknown): string {
   let text = value === null || value === undefined ? "" : String(value);
-  if (/^[\\s\\uFEFF]*[=+\\-@]/u.test(text)) text = "\'" + text;
+  if (/^[\s\uFEFF]*[=+\-@]/u.test(text)) text = "'" + text;
   return '"' + text.replace(/"/g, '""') + '"';
 }
 
