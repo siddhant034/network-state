@@ -6,6 +6,7 @@ import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, sum
 import { appendReliabilityObservation, type ReliabilityObservation } from "./analytics/reliability";
 import { ReliabilityPanel } from "./components/ReliabilityPanel";
 import { IncidentTimeline } from "./components/IncidentTimeline";
+import { NetworkTestLab } from "./components/NetworkTestLab";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
@@ -306,6 +307,8 @@ function App() {
       <ReliabilityPanel observations={reliabilityObservations} window={latencyWindow} />
 
       <IncidentTimeline observations={reliabilityObservations} events={state.events} window={latencyWindow} />
+
+      <NetworkTestLab />
 
       <section className="request-panel" aria-labelledby="request-title">
         <div className="request-panel-heading">
