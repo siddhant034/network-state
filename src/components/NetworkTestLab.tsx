@@ -209,7 +209,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
             setConfigError("");
             setConfigMessage("Ready to save a new configuration.");
           }} disabled={running}>
-            New
+            New configuration
           </button>
         </div>
         <div className="network-lab-config-load">
