@@ -177,7 +177,7 @@ function App() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#" aria-label="Network State home">
+        <a className="brand" href="#" aria-label="networkstate home">
           <span className="brand-mark"><Activity size={19} strokeWidth={2.4} /></span>
           <span>network<span className="brand-light">state</span></span>
         </a>
