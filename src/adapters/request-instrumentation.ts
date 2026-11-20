@@ -161,12 +161,18 @@ export function installXhrInstrumentation(
 
   const patchedOpen: typeof XMLHttpRequest.prototype.open = function (
     this: XMLHttpRequest,
-    ...args: Parameters<typeof XMLHttpRequest.prototype.open>
+    method: string,
+    url: string | URL,
+    async?: boolean,
+    username?: string | null,
+    password?: string | null
   ) {
-    const result = originalOpen.apply(this, args);
+    const result = async === undefined
+      ? originalOpen.call(this, method, url)
+      : originalOpen.call(this, method, url, async, username, password);
     metadataByRequest.set(this, {
-      method: normalizeMethod(args[0]),
-      url: sanitizeUrl(args[1])
+      method: normalizeMethod(method),
+      url: sanitizeUrl(url)
     });
     return result;
   };
