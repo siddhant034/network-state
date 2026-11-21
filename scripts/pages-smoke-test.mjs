@@ -69,6 +69,31 @@ export function extractResourceUrls(html, pageUrl) {
   return resources;
 }
 
+export function decodeCssEscapes(value) {
+  return value
+    .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?/gi, (_, hex) => {
+      const codePoint = Number.parseInt(hex, 16);
+      return codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ? "\uFFFD"
+        : String.fromCodePoint(codePoint);
+    })
+    .replace(/\\([\t\n\r\f])/g, "")
+    .replace(/\\([^\r\n\f])/g, "$1");
+}
+
+export function extractCssResourceUrls(css, stylesheetUrl) {
+  const source = decodeCssEscapes(css.replace(/\/\*[\s\S]*?\*\//g, ""));
+  const values = [];
+  // Scan imports and url() dependencies together to preserve source order.
+  const dependencyPattern = /@import\s+(?:url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)|"([^"]+)"|'([^']+)'|([^\s;]+))|url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)/gi;
+  for (const match of source.matchAll(dependencyPattern)) {
+    const value = match.slice(1).find((part) => part !== undefined);
+    if (value) values.push(value);
+  }
+  return [...new Set(values)]
+    .filter((value) => value && !value.startsWith("data:") && !value.startsWith("#"))
+    .map((value) => new URL(value, stylesheetUrl));
+}
 export function assertSameOrigin(actualUrl, expectedOrigin, label) {
   const actual = new URL(actualUrl);
   if (actual.origin !== expectedOrigin) {
@@ -160,6 +185,13 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     }
     const bytes = await readBounded(response, ASSET_LIMIT, `Published asset ${asset.pathname}`);
     if (bytes.byteLength === 0) throw new Error(`Published asset is empty: ${asset.pathname}`);
+    if (asset.pathname.endsWith(".css")) {
+      const cssResources = extractCssResourceUrls(new TextDecoder().decode(bytes), response.url || asset.href);
+      for (const resource of cssResources) {
+        assertSameOrigin(resource.href, pageUrl.origin, "Published CSS resource");
+        if (resource.protocol !== "https:") throw new Error(`Published CSS resource uses an unexpected protocol: ${resource.protocol}`);
+      }
+    }
   }
   return { pageUrl: pageUrl.href, assetCount: assets.length, resourceCount: resources.length };
 }

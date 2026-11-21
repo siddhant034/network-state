@@ -186,3 +186,32 @@ test("does not miss a third-party resource when its attributes contain whitespac
     /Published resource redirected to an unexpected origin/,
   );
 });
+
+test("extracts CSS url and import dependencies and ignores comments/data URLs", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = '/* url(https://comment.example/x.png) */ @import url("./theme.css"); @import "https://external.example/fonts.css"; .hero{background:url(../images/hero.webp)} .inline{background:url(data:image/png;base64,AAAA)}';
+  assert.deepEqual(extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href), [
+    origin + "/assets/theme.css", "https://external.example/fonts.css", origin + "/images/hero.webp",
+  ]);
+});
+
+test("rejects external CSS dependencies in the published stylesheet", async () => {
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href.endsWith(".js")) return response("console.log(1)", href, 200, "text/javascript");
+    return response('@import url("https://fonts.example/font.css"); body{background:url(https://img.example/bg.png)}', href, 200, "text/css");
+  };
+  await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /Published CSS resource redirected to an unexpected origin/);
+});
+
+
+test("decodes CSS escapes before extracting escaped resource functions and hosts", async () => {
+  const { decodeCssEscapes, extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = "@im\\70ort url(\"https://\\65 xternal.example/font.css\"); .hero{background:u\\72l(https://img.example/bg.png)}";
+  assert.match(decodeCssEscapes(css), /@import url/);
+  assert.deepEqual(
+    extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
+    ["https://external.example/font.css", "https://img.example/bg.png"],
+  );
+});
