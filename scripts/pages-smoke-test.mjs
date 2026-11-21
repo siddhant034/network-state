@@ -27,10 +27,10 @@ export function extractResourceUrls(html, pageUrl) {
       if (value) resources.push(new URL(value, pageUrl));
     }
     if (tag === "img" || tag === "source") {
-      const srcset = attributes.match(/\\bsrcset\\s*=\\s*["']([^"']+)["']/i)?.[1];
+      const srcset = attributes.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1];
       if (srcset) {
         for (const candidate of srcset.split(",")) {
-          const value = candidate.trim().split(/\\s+/, 1)[0];
+          const value = candidate.trim().split(/\s+/, 1)[0];
           if (value && !value.startsWith("data:")) resources.push(new URL(value, pageUrl));
         }
       }
