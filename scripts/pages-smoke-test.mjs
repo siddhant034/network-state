@@ -6,8 +6,9 @@ const MAX_ASSETS = 20;
 const TIMEOUT_MS = 15_000;
 
 export function extractAssets(html, pageUrl) {
+  const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   return [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/gi)]
-    .map((match) => new URL(match[1], pageUrl));
+    .map((match) => new URL(match[1], documentBaseUrl));
 }
 
 export function parseSrcset(srcset) {
@@ -39,6 +40,15 @@ function getAttribute(attributes, name) {
   const pattern = new RegExp("(?:^|\\s)" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i");
   const match = attributes.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
+export function getDocumentBaseUrl(html, pageUrl) {
+  const head = html.match(/<head\b[^>]*>([\s\S]*?)(?:<\/head\s*>|$)/i)?.[1] ?? "";
+  for (const match of head.matchAll(/<base\b([^>]*)>/gi)) {
+    const href = getAttribute(match[1], "href");
+    if (href !== undefined) return new URL(decodeHtmlAttribute(href), pageUrl);
+  }
+  return new URL(pageUrl);
 }
 
 function decodeHtmlAttribute(value) {
@@ -74,6 +84,7 @@ export function extractInlineCss(html) {
 
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
+  const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
@@ -98,7 +109,7 @@ export function extractResourceUrls(html, pageUrl) {
               : ["src"];
     for (const name of names) {
       const value = getAttribute(attributes, name);
-      if (value) resources.push(new URL(decodeHtmlAttribute(value), pageUrl));
+      if (value) resources.push(new URL(decodeHtmlAttribute(value), documentBaseUrl));
     }
 
     if (tag === "img" || tag === "source" || (tag === "link" && rel.includes("preload"))) {
@@ -458,6 +469,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   if (!/<title>Network State/i.test(html)) throw new Error("Published HTML is missing the Network State title");
   if (!/id=["']root["']/.test(html)) throw new Error("Published HTML is missing the application root");
 
+  const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   const resources = extractResourceUrls(html, pageUrl);
   for (const resource of resources) {
     assertSameOrigin(resource.href, pageUrl.origin, "Published resource");
@@ -511,7 +523,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   }
 
   const inlineCss = extractInlineCss(html);
-  for (const css of inlineCss) await inspectCss(css, pageUrl.href);
+  for (const css of inlineCss) await inspectCss(css, documentBaseUrl.href);
 
   const assets = extractAssets(html, pageUrl);
   if (assets.length === 0 || assets.length > MAX_ASSETS) {
