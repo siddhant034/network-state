@@ -204,3 +204,14 @@ test("rejects external CSS dependencies in the published stylesheet", async () =
   };
   await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /Published CSS resource redirected to an unexpected origin/);
 });
+
+
+test("decodes CSS escapes before extracting escaped resource functions and hosts", async () => {
+  const { decodeCssEscapes, extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = String.raw\`@im\\70ort url("https://\\65 xternal.example/font.css"); .hero{background:u\\72l(https://img.example/bg.png)}\`;
+  assert.match(decodeCssEscapes(css), /@import url/);
+  assert.deepEqual(
+    extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
+    ["https://external.example/font.css", "https://img.example/bg.png"],
+  );
+});
