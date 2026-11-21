@@ -5,8 +5,8 @@ import { extractAssets, assertSameOrigin, verifyPublishedSite } from "./pages-sm
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
 
-function response(body, url, status = 200, type = "text/html") {
-  const result = new Response(body, { status, headers: { "content-type": type } });
+function response(body, url, status = 200, type = "text/html", headers = {}) {
+  const result = new Response(body, { status, headers: { "content-type": type, ...headers } });
   Object.defineProperty(result, "url", { value: url });
   return result;
 }
@@ -67,5 +67,54 @@ test("rejects non-HTTPS deployment URLs and missing required markup", async () =
   await assert.rejects(
     verifyPublishedSite(origin + "/", async () => response("<title>Other</title>", origin + "/")),
     /missing the Network State title/,
+  );
+});
+
+test("rejects pages with missing entry assets or an excessive asset count", async () => {
+  const noCss = html.replace('<link href="/assets/app.css" rel="stylesheet">', "");
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      return response(href === origin + "/" ? noCss : "console.log('ok')", href, 200,
+        href.endsWith(".js") ? "text/javascript" : "text/html");
+    }),
+    /CSS asset/,
+  );
+
+  const manyAssets = '<title>Network State</title><div id="root"></div>' +
+    Array.from({ length: 21 }, (_, i) => `<script src="/assets/${i}.js"></script>`).join("") +
+    '<link href="/assets/app.css" rel="stylesheet">';
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      if (href === origin + "/") return response(manyAssets, href);
+      return response("asset", href, 200, href.endsWith(".css") ? "text/css" : "text/javascript");
+    }),
+    /Unexpected number/,
+  );
+});
+
+test("rejects declared and streamed responses that exceed size budgets", async () => {
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => response(
+      html, String(url), 200, "text/html", { "content-length": String(1024 * 1024 + 1) },
+    )),
+    /exceeds 1048576 bytes/,
+  );
+
+  const oversizedStream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(1024 * 1024));
+      controller.enqueue(new Uint8Array(1));
+      controller.close();
+    },
+  });
+  const streamed = new Response(oversizedStream, {
+    headers: { "content-type": "text/html" },
+  });
+  Object.defineProperty(streamed, "url", { value: origin + "/" });
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async () => streamed),
+    /exceeds 1048576 bytes/,
   );
 });
