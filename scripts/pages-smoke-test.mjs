@@ -69,8 +69,20 @@ export function extractResourceUrls(html, pageUrl) {
   return resources;
 }
 
+export function decodeCssEscapes(value) {
+  return value
+    .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?/gi, (_, hex) => {
+      const codePoint = Number.parseInt(hex, 16);
+      return codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ? "\uFFFD"
+        : String.fromCodePoint(codePoint);
+    })
+    .replace(/\\([\t\n\r\f])/g, "")
+    .replace(/\\([^\r\n\f])/g, "$1");
+}
+
 export function extractCssResourceUrls(css, stylesheetUrl) {
-  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const source = decodeCssEscapes(css.replace(/\/\*[\s\S]*?\*\//g, ""));
   const values = [];
   // Scan imports and url() dependencies together to preserve source order.
   const dependencyPattern = /@import\s+(?:url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)|"([^"]+)"|'([^']+)'|([^\s;]+))|url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)/gi;
