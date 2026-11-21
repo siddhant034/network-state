@@ -34,24 +34,31 @@ export function parseSrcset(srcset) {
   return urls;
 }
 
+function getAttribute(attributes, name) {
+  // Names are selected from this module's fixed allowlist, never from page content.
+  const pattern = new RegExp(String.raw\`(?:^|\\s)\${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))\`, "i");
+  const match = attributes.match(pattern);
+  return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\b([^>]*)>/gi;
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().split(/\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
     );
     if (tag === "link" && !isResourceLink) continue;
     const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
     for (const name of names) {
-      const value = attributes.match(new RegExp("\\b" + name + "\s*=\s*[\"']([^\"']+)[\"']", "i"))?.[1];
+      const value = getAttribute(attributes, name);
       if (value) resources.push(new URL(value, pageUrl));
     }
     if (tag === "img" || tag === "source") {
-      const srcset = attributes.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1];
+      const srcset = getAttribute(attributes, "srcset");
       if (srcset) {
         for (const value of parseSrcset(srcset)) {
           if (!value.startsWith("data:")) resources.push(new URL(value, pageUrl));
