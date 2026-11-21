@@ -82,18 +82,21 @@ export function decodeCssEscapes(value) {
 }
 
 function skipCssTrivia(source, position) {
-  while (position < source.length) {
-    if (/\s/.test(source[position])) {
-      position++;
+  let cursor = position;
+  while (cursor < source.length) {
+    if (/\s/.test(source[cursor])) {
+      cursor++;
       continue;
     }
-    if (source[position] === "/" && source[position + 1] === "*") {
-      const close = source.indexOf("*/", position + 2);
-      return close < 0 ? source.length : skipCssTrivia(source, close + 2);
+    if (source[cursor] === "/" && source[cursor + 1] === "*") {
+      const close = source.indexOf("*/", cursor + 2);
+      if (close < 0) return source.length;
+      cursor = close + 2;
+      continue;
     }
     break;
   }
-  return position;
+  return cursor;
 }
 
 function readCssEscape(source, position) {
