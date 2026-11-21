@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractAssets, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
+import { extractAssets, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
@@ -116,5 +116,51 @@ test("rejects declared and streamed responses that exceed size budgets", async (
   await assert.rejects(
     verifyPublishedSite(origin + "/", async () => streamed),
     /exceeds 1048576 bytes/,
+  );
+});
+
+
+test("extracts resource-bearing tags but ignores ordinary external navigation links", () => {
+  const document = '<link rel="stylesheet" href="/app.css">' +
+    '<link rel="preconnect" href="https://fonts.example">' +
+    '<script src="/app.js"></script><img src="icons/status.svg">' +
+    '<video poster="/preview.png"></video>' +
+    '<img srcset="/small.png 1x, https://img.example/large.png 2x">' +
+    '<a href="https://docs.example/">Docs</a>';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")),
+    [origin + "/app.css", "https://fonts.example/", origin + "/app.js", origin + "/icons/status.svg", origin + "/preview.png", origin + "/small.png", "https://img.example/large.png"]
+      .map((url) => new URL(url)),
+  );
+});
+
+test("rejects third-party stylesheet, font, image, or script references in published HTML", async () => {
+  const unsafeHtml = html.replace(
+    "</head>",
+    '<link rel="stylesheet" href="https://fonts.example/styles.css">' +
+      '<link rel="preconnect" href="https://fonts.example">' +
+      '<script src="https://cdn.example/app.js"></script></head>',
+  );
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) =>
+      response(unsafeHtml, String(url)),
+    ),
+    /Published resource redirected to an unexpected origin/,
+  );
+});
+
+test("parses srcset data URLs without treating their comma as a separator", () => {
+  const document = '<img srcset="data:image/png;base64,AAAA 1x, /small.png 2x, /large.png 3x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/small.png", origin + "/large.png"],
+  );
+});
+
+test("parses srcset candidates with and without descriptors", () => {
+  const document = '<img srcset="/one.png, /two.png 2x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/one.png", origin + "/two.png"],
   );
 });

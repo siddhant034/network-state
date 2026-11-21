@@ -10,6 +10,58 @@ export function extractAssets(html, pageUrl) {
     .map((match) => new URL(match[1], pageUrl));
 }
 
+export function parseSrcset(srcset) {
+  const urls = [];
+  let position = 0;
+
+  while (position < srcset.length) {
+    while (position < srcset.length && /[\s,]/.test(srcset[position])) position++;
+    if (position >= srcset.length) break;
+
+    const start = position;
+    // A data URL can contain commas; its URL token ends at whitespace.
+    while (position < srcset.length && !/\s/.test(srcset[position])) position++;
+    let url = srcset.slice(start, position);
+    const endedCandidate = url.endsWith(",");
+    while (url.endsWith(",")) url = url.slice(0, -1);
+    if (url) urls.push(url);
+    if (endedCandidate) continue;
+
+    while (position < srcset.length && srcset[position] !== ",") position++;
+    if (srcset[position] === ",") position++;
+  }
+
+  return urls;
+}
+
+export function extractResourceUrls(html, pageUrl) {
+  const resources = [];
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\b([^>]*)>/gi;
+  for (const match of html.matchAll(tagPattern)) {
+    const tag = match[1].toLowerCase();
+    const attributes = match[2];
+    const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().split(/\s+/) ?? [];
+    const isResourceLink = tag === "link" && rel.some((value) =>
+      ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
+    );
+    if (tag === "link" && !isResourceLink) continue;
+    const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
+    for (const name of names) {
+      const value = attributes.match(new RegExp("\\b" + name + "\s*=\s*[\"']([^\"']+)[\"']", "i"))?.[1];
+      if (value) resources.push(new URL(value, pageUrl));
+    }
+    if (tag === "img" || tag === "source") {
+      const srcset = attributes.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1];
+      if (srcset) {
+        for (const value of parseSrcset(srcset)) {
+          if (!value.startsWith("data:")) resources.push(new URL(value, pageUrl));
+        }
+      }
+    }
+  }
+  return resources;
+}
+
 export function assertSameOrigin(actualUrl, expectedOrigin, label) {
   const actual = new URL(actualUrl);
   if (actual.origin !== expectedOrigin) {
@@ -68,6 +120,14 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   if (!/<title>Network State/i.test(html)) throw new Error("Published HTML is missing the Network State title");
   if (!/id=["']root["']/.test(html)) throw new Error("Published HTML is missing the application root");
 
+  const resources = extractResourceUrls(html, pageUrl);
+  for (const resource of resources) {
+    assertSameOrigin(resource.href, pageUrl.origin, "Published resource");
+    if (resource.protocol !== "https:") {
+      throw new Error(`Published resource uses an unexpected protocol: ${resource.protocol}`);
+    }
+  }
+
   const assets = extractAssets(html, pageUrl);
   if (assets.length === 0 || assets.length > MAX_ASSETS) {
     throw new Error(`Unexpected number of published JS/CSS assets: ${assets.length}`);
@@ -94,13 +154,13 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     const bytes = await readBounded(response, ASSET_LIMIT, `Published asset ${asset.pathname}`);
     if (bytes.byteLength === 0) throw new Error(`Published asset is empty: ${asset.pathname}`);
   }
-  return { pageUrl: pageUrl.href, assetCount: assets.length };
+  return { pageUrl: pageUrl.href, assetCount: assets.length, resourceCount: resources.length };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const result = await verifyPublishedSite(process.env.PAGES_URL);
-    console.log(`Pages smoke test passed: ${result.pageUrl} (${result.assetCount} same-origin assets)`);
+    console.log(`Pages smoke test passed: ${result.pageUrl} (${result.assetCount} same-origin JS/CSS assets, ${result.resourceCount} same-origin resources)`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
