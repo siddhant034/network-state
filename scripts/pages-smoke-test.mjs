@@ -393,6 +393,9 @@ export function extractCssResourceUrls(css, stylesheetUrl) {
 }
 export function assertSameOrigin(actualUrl, expectedOrigin, label) {
   const actual = new URL(actualUrl);
+  if (actual.username || actual.password) {
+    throw new Error(`${label} contains URL credentials`);
+  }
   if (actual.origin !== expectedOrigin) {
     throw new Error(`${label} redirected to an unexpected origin: ${actual.origin}`);
   }
