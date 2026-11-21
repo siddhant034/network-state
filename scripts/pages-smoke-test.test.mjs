@@ -19,6 +19,48 @@ test("extracts JS and CSS assets relative to the published page", () => {
   ]);
 });
 
+test("resolves assets against the first document base URL", () => {
+  const document = '<head><base href="/app/"><base href="https://ignored.example/"></head>' +
+    '<script src="assets/main.js"></script><link href="style.css" rel="stylesheet">';
+  assert.deepEqual(
+    extractAssets(document, new URL(origin + "/project/")).map((asset) => asset.href),
+    [origin + "/app/assets/main.js", origin + "/app/style.css"],
+  );
+});
+
+test("resolves resource-bearing HTML attributes against the document base URL", () => {
+  const document = '<head><base href="https://cdn.example/site/"></head>' +
+    '<img src="images/status.png"><link rel="stylesheet" href="styles/app.css">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    ["https://cdn.example/site/images/status.png", "https://cdn.example/site/styles/app.css"],
+  );
+});
+
+test("rejects relative published assets redirected by an external base URL", async () => {
+  const basedHtml = '<!doctype html><html><head><title>Network State</title>' +
+    '<base href="https://cdn.example/site/"><link rel="stylesheet" href="assets/app.css">' +
+    '</head><body><div id="root"></div><script src="assets/app.js"></script></body></html>';
+  const requested = [];
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      requested.push(String(url));
+      return response(basedHtml, String(url));
+    }),
+    /Published resource redirected to an unexpected origin/,
+  );
+  assert.deepEqual(requested, [origin + "/"]);
+});
+
+test("resolves relative inline CSS dependencies against the document base URL", async () => {
+  const basedHtml = html.replace("</head>", '<base href="https://cdn.example/site/"></head>')
+    .replace("</body>", '<style>.hero{background:url(images/hero.png)}</style></body>');
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => response(basedHtml, String(url))),
+    /Published CSS resource redirected to an unexpected origin/,
+  );
+});
+
 test("rejects unexpected origins including redirect destinations", () => {
   assert.throws(() => assertSameOrigin("https://evil.example/file.js", origin, "asset"), /unexpected origin/);
 });
