@@ -16,14 +16,14 @@ export function extractResourceUrls(html, pageUrl) {
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().split(/\s+/) ?? [];
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest"].includes(value),
     );
     if (tag === "link" && !isResourceLink) continue;
     const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
     for (const name of names) {
-      const value = attributes.match(new RegExp("\\\b" + name + "=[\\\"']([^\\\"']+)[\\\"']", "i"))?.[1];
+      const value = attributes.match(new RegExp("\\b" + name + "=[\"']([^\"']+)[\"']", "i"))?.[1];
       if (value) resources.push(new URL(value, pageUrl));
     }
   }
