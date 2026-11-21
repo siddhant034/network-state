@@ -343,3 +343,15 @@ test("rejects external dependencies in inline style blocks and style attributes"
     );
   }
 });
+
+
+test("rejects third-party responsive image preload candidates in published HTML", async () => {
+  const unsafeHtml = html.replace(
+    "</head>",
+    '<link rel="preload" as="image" imagesrcset="/local.png 1x, https://cdn.example/remote.png 2x"></head>',
+  );
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => response(unsafeHtml, String(url))),
+    /Published resource redirected to an unexpected origin/,
+  );
+});
