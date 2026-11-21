@@ -81,17 +81,157 @@ export function decodeCssEscapes(value) {
     .replace(/\\([^\r\n\f])/g, "$1");
 }
 
-export function extractCssResourceUrls(css, stylesheetUrl) {
-  const source = decodeCssEscapes(css.replace(/\/\*[\s\S]*?\*\//g, ""));
-  const values = [];
-  // Scan imports and url() dependencies together to preserve source order.
-  const dependencyPattern = /@import\s+(?:url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)|"([^"]+)"|'([^']+)'|([^\s;]+))|url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)/gi;
-  for (const match of source.matchAll(dependencyPattern)) {
-    const value = match.slice(1).find((part) => part !== undefined);
-    if (value) values.push(value);
+function skipCssTrivia(source, position) {
+  let cursor = position;
+  while (cursor < source.length) {
+    if (/\s/.test(source[cursor])) {
+      cursor++;
+      continue;
+    }
+    if (source[cursor] === "/" && source[cursor + 1] === "*") {
+      const close = source.indexOf("*/", cursor + 2);
+      if (close < 0) return source.length;
+      cursor = close + 2;
+      continue;
+    }
+    break;
   }
+  return cursor;
+}
+
+function readCssEscape(source, position) {
+  if (source[position] !== "\\" || position + 1 >= source.length) {
+    return { value: source[position] ?? "", next: position + 1 };
+  }
+  let cursor = position + 1;
+  if (/[0-9a-f]/i.test(source[cursor])) {
+    const start = cursor;
+    while (cursor < source.length && cursor - start < 6 && /[0-9a-f]/i.test(source[cursor])) cursor++;
+    const point = Number.parseInt(source.slice(start, cursor), 16);
+    if (/\s/.test(source[cursor] ?? "")) cursor++;
+    return {
+      value: point === 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)
+        ? "\uFFFD"
+        : String.fromCodePoint(point),
+      next: cursor,
+    };
+  }
+  if (source[cursor] === "\r" && source[cursor + 1] === "\n") {
+    return { value: "", next: cursor + 2 };
+  }
+  if (/[\r\n\f]/.test(source[cursor])) return { value: "", next: cursor + 1 };
+  return { value: source[cursor], next: cursor + 1 };
+}
+
+function readCssIdentifier(source, position) {
+  let value = "";
+  let cursor = position;
+  while (cursor < source.length) {
+    const character = source[cursor];
+    if (character === "\\") {
+      const escape = readCssEscape(source, cursor);
+      value += escape.value;
+      cursor = escape.next;
+      continue;
+    }
+    if (!/[a-z0-9_-]/i.test(character)) break;
+    value += character;
+    cursor++;
+  }
+  return { value, next: cursor };
+}
+
+function readCssString(source, position) {
+  const quote = source[position];
+  let value = "";
+  let cursor = position + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === quote) return { value, next: cursor + 1 };
+    if (source[cursor] === "\\") {
+      const escape = readCssEscape(source, cursor);
+      value += escape.value;
+      cursor = escape.next;
+    } else {
+      value += source[cursor++];
+    }
+  }
+  throw new Error("Unterminated CSS string dependency");
+}
+
+function collectCssDependencies(source) {
+  const values = [];
+  let cursor = 0;
+  while (cursor < source.length) {
+    if (source[cursor] === "/" && source[cursor + 1] === "*") {
+      const close = source.indexOf("*/", cursor + 2);
+      cursor = close < 0 ? source.length : close + 2;
+      continue;
+    }
+    if (source[cursor] === "'" || source[cursor] === '"') {
+      cursor = readCssString(source, cursor).next;
+      continue;
+    }
+    if (source[cursor] === "@") {
+      const atRule = readCssIdentifier(source, cursor + 1);
+      if (atRule.value.toLowerCase() === "import") {
+        const next = skipCssTrivia(source, atRule.next);
+        if (source[next] === "'" || source[next] === '"') {
+          const imported = readCssString(source, next);
+          values.push(imported.value);
+          cursor = imported.next;
+          continue;
+        }
+      }
+      cursor = Math.max(atRule.next, cursor + 1);
+      continue;
+    }
+    if (/[a-z_-]/i.test(source[cursor]) || source[cursor] === "\\") {
+      const identifier = readCssIdentifier(source, cursor);
+      if (identifier.value.toLowerCase() === "url") {
+        const open = skipCssTrivia(source, identifier.next);
+        if (source[open] === "(") {
+          let valueStart = skipCssTrivia(source, open + 1);
+          if (source[valueStart] === "'" || source[valueStart] === '"') {
+            const url = readCssString(source, valueStart);
+            values.push(url.value);
+            cursor = skipCssTrivia(source, url.next);
+            if (source[cursor] !== ")") throw new Error("Unterminated CSS url() dependency");
+            cursor++;
+            continue;
+          }
+          let value = "";
+          while (valueStart < source.length && source[valueStart] !== ")") {
+            if (source[valueStart] === "/" && source[valueStart + 1] === "*") {
+              const commentEnd = source.indexOf("*/", valueStart + 2);
+              if (commentEnd < 0) throw new Error("Unterminated CSS comment inside url()");
+              valueStart = commentEnd + 2;
+            } else if (source[valueStart] === "\\") {
+              const escape = readCssEscape(source, valueStart);
+              value += escape.value;
+              valueStart = escape.next;
+            } else {
+              value += source[valueStart++];
+            }
+          }
+          if (valueStart >= source.length) throw new Error("Unterminated CSS url() dependency");
+          values.push(value.trim());
+          cursor = valueStart < source.length ? valueStart + 1 : valueStart;
+          continue;
+        }
+      }
+      cursor = Math.max(identifier.next, cursor + 1);
+      continue;
+    }
+    cursor++;
+  }
+  return values;
+}
+
+export function extractCssResourceUrls(css, stylesheetUrl) {
+  const values = collectCssDependencies(css);
   return [...new Set(values)]
-    .filter((value) => value && !value.startsWith("data:") && !value.startsWith("#"))
+    .map((value) => value.trim())
+    .filter((value) => value && !/^data:/i.test(value) && !value.startsWith("#"))
     .map((value) => new URL(value, stylesheetUrl));
 }
 export function assertSameOrigin(actualUrl, expectedOrigin, label) {
