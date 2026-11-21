@@ -164,3 +164,25 @@ test("parses srcset candidates with and without descriptors", () => {
     [origin + "/one.png", origin + "/two.png"],
   );
 });
+
+
+test("extracts quoted and unquoted resource attributes with whitespace around equals", () => {
+  const document = '<script src = "/bundle.js"></script>' +
+    '<link rel = stylesheet href = https://cdn.example/theme.css>' +
+    '<img src = /status.png>';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/bundle.js", "https://cdn.example/theme.css", origin + "/status.png"],
+  );
+});
+
+test("does not miss a third-party resource when its attributes contain whitespace", async () => {
+  const unsafeHtml = html.replace(
+    "</body>",
+    '<script src = "https://cdn.example/remote.js"></script></body>',
+  );
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => response(unsafeHtml, String(url))),
+    /Published resource redirected to an unexpected origin/,
+  );
+});
