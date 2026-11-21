@@ -237,3 +237,20 @@ test("CSS tokenizer handles escaped url identifiers and direct imports with comm
     ["https://theme.example/base.css", "https://image.example/a.png"],
   );
 });
+
+test("removes comments inside unquoted CSS url tokens before origin resolution", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = String.raw`.x{background:url(https://evil/* comment */.example/image.png)}`;
+  assert.deepEqual(
+    extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
+    ["https://evil.example/image.png"],
+  );
+});
+
+test("fails closed on unterminated CSS url dependencies", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  assert.throws(
+    () => extractCssResourceUrls(".x{background:url(https://evil.example/image.png", origin + "/assets/app.css"),
+    /Unterminated CSS url\\(\\) dependency/,
+  );
+});
