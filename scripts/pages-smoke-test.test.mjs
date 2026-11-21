@@ -208,7 +208,7 @@ test("rejects external CSS dependencies in the published stylesheet", async () =
 
 test("decodes CSS escapes before extracting escaped resource functions and hosts", async () => {
   const { decodeCssEscapes, extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
-  const css = "@im\\70ort url(\"https://\\65 xternal.example/font.css\"); .hero{background:u\\72l(https://img.example/bg.png)}";
+  const css = "@im\\70ort url(\"https://\\65 xternal.example/font.css\"); .hero{background:u\72l(https://img.example/bg.png)}";
   assert.match(decodeCssEscapes(css), /@import url/);
   assert.deepEqual(
     extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
@@ -231,7 +231,7 @@ test("CSS dependency tokenizer ignores URL-like text in strings and comments", a
 test("CSS tokenizer handles escaped url identifiers and direct imports with comments", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
   const css = String.raw`@import /* comment */ "https://theme.example/base.css";
-    .x { background: u\\72l(https://image.example/a.png); }`;
+    .x { background: u\72l(https://image.example/a.png); }`;
   assert.deepEqual(
     extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
     ["https://theme.example/base.css", "https://image.example/a.png"],
