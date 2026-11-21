@@ -158,6 +158,43 @@ function readCssString(source, position) {
   throw new Error("Unterminated CSS string dependency");
 }
 
+function readImageSetStringUrls(source, openParen) {
+  const values = [];
+  let depth = 1;
+  let cursor = openParen + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === "/" && source[cursor + 1] === "*") {
+      const close = source.indexOf("*/", cursor + 2);
+      if (close < 0) throw new Error("Unterminated CSS comment inside image-set()");
+      cursor = close + 2;
+      continue;
+    }
+    if (source.charCodeAt(cursor) === 92) {
+      cursor = Math.min(source.length, cursor + 2);
+      continue;
+    }
+    if (source[cursor] === "'" || source[cursor] === '"') {
+      const string = readCssString(source, cursor);
+      if (depth === 1) values.push(string.value);
+      cursor = string.next;
+      continue;
+    }
+    if (source[cursor] === "(") {
+      depth++;
+      cursor++;
+      continue;
+    }
+    if (source[cursor] === ")") {
+      depth--;
+      cursor++;
+      if (depth === 0) return { values, next: cursor };
+      continue;
+    }
+    cursor++;
+  }
+  throw new Error("Unterminated CSS image-set() dependency");
+}
+
 function collectCssDependencies(source) {
   const values = [];
   let cursor = 0;
@@ -187,7 +224,14 @@ function collectCssDependencies(source) {
     }
     if (/[a-z_-]/i.test(source[cursor]) || source[cursor] === "\\") {
       const identifier = readCssIdentifier(source, cursor);
-      if (identifier.value.toLowerCase() === "url") {
+      const functionName = identifier.value.toLowerCase();
+      if (functionName === "image-set" || functionName === "-webkit-image-set") {
+        const open = skipCssTrivia(source, identifier.next);
+        if (source[open] === "(") {
+          values.push(...readImageSetStringUrls(source, open).values);
+        }
+      }
+      if (functionName === "url") {
         const open = skipCssTrivia(source, identifier.next);
         if (source[open] === "(") {
           let valueStart = skipCssTrivia(source, open + 1);
