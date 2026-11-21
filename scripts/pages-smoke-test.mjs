@@ -36,18 +36,18 @@ export function parseSrcset(srcset) {
 
 function getAttribute(attributes, name) {
   // Names are selected from this module's fixed allowlist, never from page content.
-  const pattern = new RegExp(String.raw\`(?:^|\\s)\${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))\`, "i");
+  const pattern = new RegExp(String.raw\`(?:^|\s)\${name}\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))\`, "i");
   const match = attributes.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\\b([^>]*)>/gi;
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
     );
