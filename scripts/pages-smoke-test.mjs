@@ -314,6 +314,76 @@ function collectCssDependencies(source) {
   return values;
 }
 
+export function extractCssImports(css) {
+  const imports = [];
+  let cursor = 0;
+  while (cursor < css.length) {
+    if (css[cursor] === "/" && css[cursor + 1] === "*") {
+      const close = css.indexOf("*/", cursor + 2);
+      if (close < 0) throw new Error("Unterminated CSS comment");
+      cursor = close + 2;
+      continue;
+    }
+    if (css[cursor] === "'" || css[cursor] === '"') {
+      cursor = readCssString(css, cursor).next;
+      continue;
+    }
+    if (css[cursor] === "@") {
+      const atRule = readCssIdentifier(css, cursor + 1);
+      if (atRule.value.toLowerCase() === "import") {
+        const next = skipCssTrivia(css, atRule.next);
+        if (css[next] === "'" || css[next] === '"') {
+          const value = readCssString(css, next);
+          imports.push(value.value);
+          cursor = value.next;
+          continue;
+        }
+        const identifier = readCssIdentifier(css, next);
+        if (identifier.value.toLowerCase() === "url") {
+          const open = skipCssTrivia(css, identifier.next);
+          if (css[open] === "(") {
+            let start = skipCssTrivia(css, open + 1);
+            if (css[start] === "'" || css[start] === '"') {
+              const value = readCssString(css, start);
+              imports.push(value.value);
+              cursor = skipCssTrivia(css, value.next);
+              if (css[cursor] !== ")") throw new Error("Unterminated CSS @import url()");
+              cursor++;
+              continue;
+            }
+            let value = "";
+            while (start < css.length && css[start] !== ")") {
+              if (css[start] === "/" && css[start + 1] === "*") {
+                const close = css.indexOf("*/", start + 2);
+                if (close < 0) throw new Error("Unterminated CSS comment inside @import url()");
+                start = close + 2;
+              } else if (css[start] === "\\") {
+                const escape = readCssEscape(css, start);
+                value += escape.value;
+                start = escape.next;
+              } else {
+                value += css[start++];
+              }
+            }
+            if (start >= css.length) throw new Error("Unterminated CSS @import url()");
+            imports.push(value.trim());
+            cursor = start + 1;
+            continue;
+          }
+        }
+      }
+      cursor = Math.max(atRule.next, cursor + 1);
+      continue;
+    }
+    if (css[cursor] === "\\") {
+      cursor = readCssEscape(css, cursor).next;
+    } else {
+      cursor++;
+    }
+  }
+  return [...new Set(imports)];
+}
+
 export function extractCssResourceUrls(css, stylesheetUrl) {
   const values = collectCssDependencies(css);
   return [...new Set(values)]
@@ -387,15 +457,44 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     }
   }
 
-  const inlineCssResources = extractInlineCss(html).flatMap((css) =>
-    extractCssResourceUrls(css, pageUrl),
-  );
-  for (const resource of inlineCssResources) {
-    assertSameOrigin(resource.href, pageUrl.origin, "Published inline CSS resource");
-    if (resource.protocol !== "https:") {
-      throw new Error(`Published inline CSS resource uses an unexpected protocol: ${resource.protocol}`);
+  const visitedStylesheets = new Set();
+  let importedStylesheetCount = 0;
+  async function inspectCss(css, stylesheetUrl, depth = 0) {
+    const stylesheet = new URL(stylesheetUrl);
+    if (depth > 5) throw new Error("Published CSS import depth exceeds 5");
+    for (const resource of extractCssResourceUrls(css, stylesheet)) {
+      assertSameOrigin(resource.href, pageUrl.origin, "Published CSS resource");
+      if (resource.protocol !== "https:") {
+        throw new Error(`Published CSS resource uses an unexpected protocol: ${resource.protocol}`);
+      }
+    }
+    for (const value of extractCssImports(css)) {
+      const imported = new URL(value, stylesheet);
+      assertSameOrigin(imported.href, pageUrl.origin, "Published CSS import");
+      if (imported.protocol !== "https:") {
+        throw new Error(`Published CSS import uses an unexpected protocol: ${imported.protocol}`);
+      }
+      if (visitedStylesheets.has(imported.href)) continue;
+      importedStylesheetCount++;
+      if (importedStylesheetCount > 20) throw new Error("Published CSS import count exceeds 20");
+      visitedStylesheets.add(imported.href);
+      const importedResponse = await request(imported);
+      if (!importedResponse.ok) {
+        throw new Error(`Published CSS import returned HTTP ${importedResponse.status}: ${imported.pathname}`);
+      }
+      const importedUrl = assertSameOrigin(importedResponse.url || imported.href, pageUrl.origin, "Published CSS import");
+      const importedType = importedResponse.headers.get("content-type") ?? "";
+      if (!/text\\/css/i.test(importedType)) {
+        throw new Error(`Published CSS import has unexpected content type: ${importedType}`);
+      }
+      const importedBytes = await readBounded(importedResponse, ASSET_LIMIT, `Published CSS import ${importedUrl.pathname}`);
+      if (importedBytes.byteLength === 0) throw new Error(`Published CSS import is empty: ${importedUrl.pathname}`);
+      await inspectCss(new TextDecoder().decode(importedBytes), importedUrl.href, depth + 1);
     }
   }
+
+  const inlineCss = extractInlineCss(html);
+  for (const css of inlineCss) await inspectCss(css, pageUrl.href);
 
   const assets = extractAssets(html, pageUrl);
   if (assets.length === 0 || assets.length > MAX_ASSETS) {
@@ -423,11 +522,10 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     const bytes = await readBounded(response, ASSET_LIMIT, `Published asset ${asset.pathname}`);
     if (bytes.byteLength === 0) throw new Error(`Published asset is empty: ${asset.pathname}`);
     if (asset.pathname.endsWith(".css")) {
-      const cssResources = extractCssResourceUrls(new TextDecoder().decode(bytes), response.url || asset.href);
-      for (const resource of cssResources) {
-        assertSameOrigin(resource.href, pageUrl.origin, "Published CSS resource");
-        if (resource.protocol !== "https:") throw new Error(`Published CSS resource uses an unexpected protocol: ${resource.protocol}`);
-      }
+      const stylesheetUrl = assertSameOrigin(response.url || asset.href, pageUrl.origin, "Published stylesheet");
+      const stylesheet = new URL(stylesheetUrl.href);
+      if (!visitedStylesheets.has(stylesheet.href)) visitedStylesheets.add(stylesheet.href);
+      await inspectCss(new TextDecoder().decode(bytes), stylesheet.href);
     }
   }
   return { pageUrl: pageUrl.href, assetCount: assets.length, resourceCount: resources.length };
