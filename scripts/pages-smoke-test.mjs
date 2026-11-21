@@ -155,7 +155,7 @@ function readCssString(source, position) {
       value += source[cursor++];
     }
   }
-  return { value, next: cursor };
+  throw new Error("Unterminated CSS string dependency");
 }
 
 function collectCssDependencies(source) {
@@ -195,7 +195,8 @@ function collectCssDependencies(source) {
             const url = readCssString(source, valueStart);
             values.push(url.value);
             cursor = skipCssTrivia(source, url.next);
-            if (source[cursor] === ")") cursor++;
+            if (source[cursor] !== ")") throw new Error("Unterminated CSS url() dependency");
+            cursor++;
             continue;
           }
           let value = "";
