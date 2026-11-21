@@ -339,7 +339,7 @@ test("rejects external dependencies in inline style blocks and style attributes"
     const unsafeHtml = html.replace("</body>", unsafeMarkup + "</body>");
     await assert.rejects(
       verifyPublishedSite(origin + "/", async (url) => response(unsafeHtml, String(url))),
-      /Published inline CSS resource redirected to an unexpected origin/,
+      /Published CSS resource redirected to an unexpected origin/,
     );
   }
 });
