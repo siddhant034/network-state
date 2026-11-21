@@ -53,10 +53,18 @@ test("rejects relative published assets redirected by an external base URL", asy
 });
 
 test("resolves relative inline CSS dependencies against the document base URL", async () => {
-  const basedHtml = html.replace("</head>", '<base href="https://cdn.example/site/"></head>')
+  const basedHtml = html
+    .replace("</head>", '<base href="https://cdn.example/site/"></head>')
+    .replace('href="/assets/app.css"', `href="${origin}/assets/app.css"`)
+    .replace('src="/assets/app.js"', `src="${origin}/assets/app.js"`)
     .replace("</body>", '<style>.hero{background:url(images/hero.png)}</style></body>');
   await assert.rejects(
-    verifyPublishedSite(origin + "/", async (url) => response(basedHtml, String(url))),
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      if (href === origin + "/") return response(basedHtml, href);
+      if (href.endsWith(".js")) return response("console.log(1)", href, 200, "text/javascript");
+      return response("body{}", href, 200, "text/css");
+    }),
     /Published CSS resource redirected to an unexpected origin/,
   );
 });
