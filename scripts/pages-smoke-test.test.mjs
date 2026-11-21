@@ -487,3 +487,23 @@ test("marks same-origin redirect destinations visited before scanning imports", 
   assert.deepEqual(requested, [origin + "/alias.css"]);
 });
 
+test("rejects credential-bearing same-origin resource URLs before fetching", async () => {
+  assert.throws(
+    () => assertSameOrigin("https://user:secret@example.github.io/private.css", origin, "Published CSS resource"),
+    /contains URL credentials/,
+  );
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    if (href === origin + "/assets/app.css") {
+      return response('@import "https://user:secret@example.github.io/private.css";', href, 200, "text/css");
+    }
+    throw new Error("unexpected credential-bearing request: " + href);
+  };
+  await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /contains URL credentials/);
+  assert.equal(requests.some((url) => url.includes("user:secret@")), false);
+});
+
