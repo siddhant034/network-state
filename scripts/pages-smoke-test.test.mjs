@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractAssets, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
+import { extractAssets, extractCssImports, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
@@ -344,6 +344,58 @@ test("rejects external dependencies in inline style blocks and style attributes"
   }
 });
 
+
+
+test("extracts CSS imports while ignoring strings and comments", () => {
+  const css = String.raw`content: "@import \\"https://fake.example/no.css\\"";
+    /* @import "https://comment.example/no.css"; */
+    @import /* gap */ "https://theme.example/base.css" screen;
+    @import url(\\2f nested\\2e css);
+    @import url("/nested.css");`;
+  assert.deepEqual(extractCssImports(css), [
+    "https://theme.example/base.css",
+    "/nested.css",
+  ]);
+});
+
+test("rejects third-party resources hidden in a nested same-origin CSS import", async () => {
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") {
+      return response('@import "/nested/theme.css"; body{color:black}', href, 200, "text/css");
+    }
+    if (href === origin + "/nested/theme.css") {
+      return response(".theme{background:url(https://tracker.example/pixel.png)}", href, 200, "text/css");
+    }
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published CSS resource redirected to an unexpected origin/,
+  );
+});
+
+test("handles cyclic CSS imports without fetching a stylesheet twice", async () => {
+  const nestedRequests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") {
+      return response('@import "/nested/theme.css"; body{color:black}', href, 200, "text/css");
+    }
+    if (href === origin + "/nested/theme.css") {
+      nestedRequests.push(href);
+      return response('@import "/assets/app.css"; .theme{color:blue}', href, 200, "text/css");
+    }
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    throw new Error("unexpected request: " + href);
+  };
+  const result = await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.equal(result.assetCount, 2);
+  assert.deepEqual(nestedRequests, [origin + "/nested/theme.css"]);
+});
 
 test("rejects third-party responsive image preload candidates in published HTML", async () => {
   const unsafeHtml = html.replace(
