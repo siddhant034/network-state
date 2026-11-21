@@ -52,27 +52,71 @@ jobs:
           const base = new URL(configuredUrl);
           if (base.protocol !== "https:") throw new Error("Expected an HTTPS Pages URL");
 
-          const pageResponse = await fetch(base, { redirect: "follow", cache: "no-store" });
+          const request = (url) => fetch(url, {
+            redirect: "follow",
+            cache: "no-store",
+            signal: AbortSignal.timeout(15_000),
+          });
+
+          async function readBounded(response, limit) {
+            const declared = Number(response.headers.get("content-length"));
+            if (Number.isFinite(declared) && declared > limit) {
+              throw new Error(`Published HTML exceeds ${limit} bytes`);
+            }
+            if (!response.body) return "";
+            const reader = response.body.getReader();
+            const chunks = [];
+            let size = 0;
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                size += value.byteLength;
+                if (size > limit) {
+                  await reader.cancel();
+                  throw new Error(`Published HTML exceeds ${limit} bytes`);
+                }
+                chunks.push(value);
+              }
+            } finally {
+              reader.releaseLock();
+            }
+            const bytes = new Uint8Array(size);
+            let offset = 0;
+            for (const chunk of chunks) {
+              bytes.set(chunk, offset);
+              offset += chunk.byteLength;
+            }
+            return new TextDecoder().decode(bytes);
+          }
+
+          const pageResponse = await request(base);
           if (!pageResponse.ok) throw new Error(`Published page returned HTTP ${pageResponse.status}`);
           const pageUrl = new URL(pageResponse.url);
           if (pageUrl.origin !== base.origin) {
             throw new Error(`Published page redirected to an unexpected origin: ${pageUrl.origin}`);
           }
-          const html = await pageResponse.text();
+          const html = await readBounded(pageResponse, 1_048_576);
           if (!/<title>Network State/i.test(html)) throw new Error("Published HTML is missing the Network State title");
           if (!/id=["']root["']/.test(html)) throw new Error("Published HTML is missing the application root");
 
           const assets = [
             ...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)
           ].map((match) => new URL(match[1], pageUrl));
+          if (assets.length === 0 || assets.length > 20) {
+            throw new Error(`Unexpected number of published JS/CSS assets: ${assets.length}`);
+          }
           if (!assets.some((asset) => asset.pathname.endsWith(".js"))) {
             throw new Error("Published HTML does not reference a JavaScript entry asset");
+          }
+          if (!assets.some((asset) => asset.pathname.endsWith(".css"))) {
+            throw new Error("Published HTML does not reference a CSS asset");
           }
           for (const asset of assets) {
             if (asset.origin !== pageUrl.origin) {
               throw new Error(`Unexpected third-party asset origin: ${asset.origin}`);
             }
-            const response = await fetch(asset, { redirect: "follow", cache: "no-store" });
+            const response = await request(asset);
             if (!response.ok) throw new Error(`Published asset returned HTTP ${response.status}: ${asset.pathname}`);
             const finalAssetUrl = new URL(response.url);
             if (finalAssetUrl.origin !== pageUrl.origin) {
@@ -85,6 +129,7 @@ jobs:
             if (asset.pathname.endsWith(".css") && !/text\/css/i.test(type)) {
               throw new Error(`CSS asset has unexpected content type: ${type}`);
             }
+            await response.body?.cancel();
           }
           console.log(`Pages smoke test passed: ${pageUrl.href} (${assets.length} same-origin assets)`);
           NODE
