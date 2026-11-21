@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractAssets, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
+import { extractAssets, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
@@ -116,5 +116,33 @@ test("rejects declared and streamed responses that exceed size budgets", async (
   await assert.rejects(
     verifyPublishedSite(origin + "/", async () => streamed),
     /exceeds 1048576 bytes/,
+  );
+});
+
+
+test("extracts resource-bearing tags but ignores ordinary external navigation links", () => {
+  const document = '<link rel="stylesheet" href="/app.css">' +
+    '<link rel="preconnect" href="https://fonts.example">' +
+    '<script src="/app.js"></script><img src="icons/status.svg">' +
+    '<video poster="/preview.png"></video>' +
+    '<a href="https://docs.example/">Docs</a>';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")),
+    [origin + "/app.css", origin + "/app.js", origin + "/icons/status.svg", origin + "/preview.png"]
+      .map((url) => new URL(url)),
+  );
+});
+
+test("rejects third-party stylesheet, font, image, or script references in published HTML", async () => {
+  const unsafeHtml = html.replace(
+    "</head>",
+    '<link rel="stylesheet" href="https://fonts.example/styles.css">' +
+      '<script src="https://cdn.example/app.js"></script></head>',
+  );
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) =>
+      response(unsafeHtml, String(url)),
+    ),
+    /Published resource redirected to an unexpected origin/,
   );
 });
