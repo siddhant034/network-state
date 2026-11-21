@@ -18,13 +18,22 @@ export function extractResourceUrls(html, pageUrl) {
     const attributes = match[2];
     const rel = attributes.match(/\brel=["']([^"']+)["']/i)?.[1]?.toLowerCase().split(/\s+/) ?? [];
     const isResourceLink = tag === "link" && rel.some((value) =>
-      ["stylesheet", "preload", "modulepreload", "icon", "manifest"].includes(value),
+      ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
     );
     if (tag === "link" && !isResourceLink) continue;
     const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
     for (const name of names) {
-      const value = attributes.match(new RegExp("\\b" + name + "=[\"']([^\"']+)[\"']", "i"))?.[1];
+      const value = attributes.match(new RegExp("\\b" + name + "\\s*=\\s*[\"']([^\"']+)[\"']", "i"))?.[1];
       if (value) resources.push(new URL(value, pageUrl));
+    }
+    if (tag === "img" || tag === "source") {
+      const srcset = attributes.match(/\\bsrcset\\s*=\\s*["']([^"']+)["']/i)?.[1];
+      if (srcset) {
+        for (const candidate of srcset.split(",")) {
+          const value = candidate.trim().split(/\\s+/, 1)[0];
+          if (value && !value.startsWith("data:")) resources.push(new URL(value, pageUrl));
+        }
+      }
     }
   }
   return resources;
