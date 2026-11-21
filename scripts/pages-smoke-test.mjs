@@ -70,13 +70,17 @@ export function extractResourceUrls(html, pageUrl) {
 }
 
 export function extractCssResourceUrls(css, stylesheetUrl) {
-  const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const source = css.replace(/\\/\\*[\\s\\S]*?\\*\\//g, "");
   const values = [];
-  const urlPattern = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^\)\s]+))\s*\)/gi;
-  for (const match of source.matchAll(urlPattern)) values.push(match[1] ?? match[2] ?? match[3]);
-  const importPattern = /@import\s+(?:url\(\s*)?(?:"([^"]+)"|'([^']+)'|([^\s;)]+))/gi;
-  for (const match of source.matchAll(importPattern)) values.push(match[1] ?? match[2] ?? match[3]);
-  return [...new Set(values)].filter((value) => value && !value.startsWith('data:') && !value.startsWith('#')).map((value) => new URL(value, stylesheetUrl));
+  // Scan imports and url() dependencies together to preserve source order.
+  const dependencyPattern = /@import\\s+(?:url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^\\)\\s]+))\\s*\\)|"([^"]+)"|'([^']+)'|([^\\s;]+))|url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^\\)\\s]+))\\s*\\)/gi;
+  for (const match of source.matchAll(dependencyPattern)) {
+    const value = match.slice(1).find((part) => part !== undefined);
+    if (value) values.push(value);
+  }
+  return [...new Set(values)]
+    .filter((value) => value && !value.startsWith("data:") && !value.startsWith("#"))
+    .map((value) => new URL(value, stylesheetUrl));
 }
 export function assertSameOrigin(actualUrl, expectedOrigin, label) {
   const actual = new URL(actualUrl);
