@@ -407,7 +407,7 @@ test("allows five imported stylesheet levels", async () => {
     if (href === origin + "/") return response(html, href);
     if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
     if (href === origin + "/assets/app.css") return response('@import "/nested/1.css";', href, 200, "text/css");
-    const match = new URL(href).pathname.match(/^\\/nested\\/(\\d+)\\.css$/);
+    const match = new URL(href).pathname.match(/^\/nested\/(\d+)\.css$/);
     if (match) {
       const level = Number(match[1]);
       requested.push(level);
@@ -426,7 +426,7 @@ test("rejects a sixth stylesheet import before fetching it", async () => {
     if (href === origin + "/") return response(html, href);
     if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
     if (href === origin + "/assets/app.css") return response('@import "/nested/1.css";', href, 200, "text/css");
-    const match = new URL(href).pathname.match(/^\\/nested\\/(\\d+)\\.css$/);
+    const match = new URL(href).pathname.match(/^\/nested\/(\d+)\.css$/);
     if (match) {
       const level = Number(match[1]);
       requested.push(level);
