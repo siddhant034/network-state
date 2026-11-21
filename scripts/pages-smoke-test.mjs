@@ -70,10 +70,10 @@ export function extractResourceUrls(html, pageUrl) {
 }
 
 export function extractCssResourceUrls(css, stylesheetUrl) {
-  const source = css.replace(/\\/\\*[\\s\\S]*?\\*\\//g, "");
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const values = [];
   // Scan imports and url() dependencies together to preserve source order.
-  const dependencyPattern = /@import\\s+(?:url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^\\)\\s]+))\\s*\\)|"([^"]+)"|'([^']+)'|([^\\s;]+))|url\\(\\s*(?:"([^"]*)"|'([^']*)'|([^\\)\\s]+))\\s*\\)/gi;
+  const dependencyPattern = /@import\s+(?:url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)|"([^"]+)"|'([^']+)'|([^\s;]+))|url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]+))\s*\)/gi;
   for (const match of source.matchAll(dependencyPattern)) {
     const value = match.slice(1).find((part) => part !== undefined);
     if (value) values.push(value);
