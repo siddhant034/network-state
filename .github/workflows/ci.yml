@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
 
+# Keep expensive browser matrices focused on the newest code for each PR/ref.
+# PR runs share a group by PR number; main pushes share a group by ref.
+concurrency:
+  group: network-state-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

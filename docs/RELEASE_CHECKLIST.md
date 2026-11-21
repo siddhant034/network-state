@@ -9,6 +9,11 @@ This checklist is intentionally separate from feature completion. A passing CI r
 - [ ] Re-run the required checks on the resulting `main` head.
 - [ ] Do not merge a child branch while its base feature is still unmerged.
 
+## CI resource hygiene
+
+- CI cancels superseded runs for the same pull request or branch so stale browser matrices do not consume runners after newer code is pushed.
+- Always verify the latest commit's run; a cancelled older run is not evidence that the current head passed.
+
 ## 2. Reproducible dependencies and security
 
 - [ ] Integrate the committed npm lockfile and `npm ci` workflows from PR #14 into `main`.
