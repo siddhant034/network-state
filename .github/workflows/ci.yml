@@ -22,6 +22,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Run tests
         run: npm test
+      - name: Test published-site smoke verifier
+        run: node --test scripts/pages-smoke-test.test.mjs
       - name: Build
         run: npm run build
       - name: Capture dependency audit report
