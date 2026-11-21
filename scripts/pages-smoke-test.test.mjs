@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractAssets, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
+import { extractAssets, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
@@ -296,4 +296,56 @@ test("fails closed on unterminated quoted CSS url dependencies", async () => {
     () => extractCssResourceUrls('.x{background:url("https://evil.example/image.png"', origin + "/assets/app.css"),
     /Unterminated CSS url\(\) dependency/,
   );
+});
+
+
+test("covers HTML resource attributes including SVG, object, embed, and responsive preloads", () => {
+  const document = '<object data="/embedded.svg"></object>' +
+    '<embed src="/movie.swf">' +
+    '<input type="image" src="/submit.png">' +
+    '<input type="text" src="https://not-a-resource.example/ignored.png">' +
+    '<svg><image href="/svg-image.png"></image><use xlink:href="/sprite.svg#status"></use></svg>' +
+    '<link rel="preload" as="image" imagesrcset="/hero-small.png 1x, https://images.example/hero-large.png 2x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [
+      origin + "/embedded.svg",
+      origin + "/movie.swf",
+      origin + "/submit.png",
+      origin + "/svg-image.png",
+      origin + "/sprite.svg#status",
+      origin + "/hero-small.png",
+      "https://images.example/hero-large.png",
+    ],
+  );
+});
+
+test("extracts CSS dependencies from style blocks and HTML style attributes", () => {
+  const document = '<style>.banner{background:image-set("https://cdn.example/banner.avif" 1x)}</style>' +
+    '<div style="background:url(&quot;https://img.example/card.png&quot;)"></div>';
+  assert.deepEqual(
+    extractInlineCss(document).flatMap((css) =>
+      // Use the public CSS resolver to validate that entity decoding preserved CSS URL syntax.
+      css.includes("cdn.example")
+        ? [css]
+        : [css],
+    ),
+    [
+      '.banner{background:image-set("https://cdn.example/banner.avif" 1x)}',
+      'background:url("https://img.example/card.png")',
+    ],
+  );
+});
+
+test("rejects external dependencies in inline style blocks and style attributes", async () => {
+  for (const unsafeMarkup of [
+    '<style>.banner{background:url(https://cdn.example/banner.png)}</style>',
+    '<div style="background:url(&quot;https://cdn.example/card.png&quot;)"></div>',
+  ]) {
+    const unsafeHtml = html.replace("</body>", unsafeMarkup + "</body>");
+    await assert.rejects(
+      verifyPublishedSite(origin + "/", async (url) => response(unsafeHtml, String(url))),
+      /Published inline CSS resource redirected to an unexpected origin/,
+    );
+  }
 });
