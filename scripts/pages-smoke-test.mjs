@@ -36,7 +36,7 @@ export function parseSrcset(srcset) {
 
 function getAttribute(attributes, name) {
   // Names are selected from this module's fixed allowlist, never from page content.
-  const pattern = new RegExp(String.raw\`(?:^|\s)\${name}\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))\`, "i");
+  const pattern = new RegExp("(?:^|\\s)" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i");
   const match = attributes.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
