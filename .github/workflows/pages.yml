@@ -55,6 +55,9 @@ jobs:
           const pageResponse = await fetch(base, { redirect: "follow", cache: "no-store" });
           if (!pageResponse.ok) throw new Error(`Published page returned HTTP ${pageResponse.status}`);
           const pageUrl = new URL(pageResponse.url);
+          if (pageUrl.origin !== base.origin) {
+            throw new Error(`Published page redirected to an unexpected origin: ${pageUrl.origin}`);
+          }
           const html = await pageResponse.text();
           if (!/<title>Network State/i.test(html)) throw new Error("Published HTML is missing the Network State title");
           if (!/id=["']root["']/.test(html)) throw new Error("Published HTML is missing the application root");
@@ -71,6 +74,10 @@ jobs:
             }
             const response = await fetch(asset, { redirect: "follow", cache: "no-store" });
             if (!response.ok) throw new Error(`Published asset returned HTTP ${response.status}: ${asset.pathname}`);
+            const finalAssetUrl = new URL(response.url);
+            if (finalAssetUrl.origin !== pageUrl.origin) {
+              throw new Error(`Published asset redirected to an unexpected origin: ${finalAssetUrl.origin}`);
+            }
             const type = response.headers.get("content-type") ?? "";
             if (asset.pathname.endsWith(".js") && !/(?:javascript|ecmascript)/i.test(type)) {
               throw new Error(`JavaScript asset has unexpected content type: ${type}`);
