@@ -347,10 +347,10 @@ test("rejects external dependencies in inline style blocks and style attributes"
 
 
 test("extracts CSS imports while ignoring strings and comments", () => {
-  const css = String.raw`content: "@import \\"https://fake.example/no.css\\"";
+  const css = String.raw`content: '@import "https://fake.example/no.css"';
     /* @import "https://comment.example/no.css"; */
     @import /* gap */ "https://theme.example/base.css" screen;
-    @import url(\\2f nested\\2e css);
+    @import url(\2f nested\2e css);
     @import url("/nested.css");`;
   assert.deepEqual(extractCssImports(css), [
     "https://theme.example/base.css",
