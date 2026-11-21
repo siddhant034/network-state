@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractAssets, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
+import { extractAssets, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
 const origin = "https://example.github.io";
 const html = '<!doctype html><html><head><title>Network State</title><link href="/assets/app.css" rel="stylesheet"></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
@@ -325,15 +325,9 @@ test("extracts CSS dependencies from style blocks and HTML style attributes", ()
     '<div style="background:url(&quot;https://img.example/card.png&quot;)"></div>';
   assert.deepEqual(
     extractInlineCss(document).flatMap((css) =>
-      // Use the public CSS resolver to validate that entity decoding preserved CSS URL syntax.
-      css.includes("cdn.example")
-        ? [css]
-        : [css],
+      extractCssResourceUrls(css, origin + "/index.html").map((url) => url.href),
     ),
-    [
-      '.banner{background:image-set("https://cdn.example/banner.avif" 1x)}',
-      'background:url("https://img.example/card.png")',
-    ],
+    ["https://cdn.example/banner.avif", "https://img.example/card.png"],
   );
 });
 
