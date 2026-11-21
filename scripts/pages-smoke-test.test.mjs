@@ -377,12 +377,14 @@ test("rejects third-party resources hidden in a nested same-origin CSS import", 
   );
 });
 
-test("handles cyclic CSS imports without fetching a stylesheet twice", async () => {
+test("handles cyclic CSS imports without refetching a root stylesheet", async () => {
+  const stylesheetRequests = [];
   const nestedRequests = [];
   const fetchImpl = async (url) => {
     const href = String(url);
     if (href === origin + "/") return response(html, href);
     if (href === origin + "/assets/app.css") {
+      stylesheetRequests.push(href);
       return response('@import "/nested/theme.css"; body{color:black}', href, 200, "text/css");
     }
     if (href === origin + "/nested/theme.css") {
@@ -394,7 +396,46 @@ test("handles cyclic CSS imports without fetching a stylesheet twice", async () 
   };
   const result = await verifyPublishedSite(origin + "/", fetchImpl);
   assert.equal(result.assetCount, 2);
+  assert.deepEqual(stylesheetRequests, [origin + "/assets/app.css"]);
   assert.deepEqual(nestedRequests, [origin + "/nested/theme.css"]);
+});
+
+test("allows five imported stylesheet levels", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    if (href === origin + "/assets/app.css") return response('@import "/nested/1.css";', href, 200, "text/css");
+    const match = href.match(/\\/nested\\/(\\d+)\\.css$/);
+    if (match) {
+      const level = Number(match[1]);
+      requested.push(level);
+      return response(level < 5 ? `@import "/nested/${level + 1}.css";` : "body{color:green}", href, 200, "text/css");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.deepEqual(requested, [1, 2, 3, 4, 5]);
+});
+
+test("rejects a sixth stylesheet import before fetching it", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    if (href === origin + "/assets/app.css") return response('@import "/nested/1.css";', href, 200, "text/css");
+    const match = href.match(/\\/nested\\/(\\d+)\\.css$/);
+    if (match) {
+      const level = Number(match[1]);
+      requested.push(level);
+      return response(`@import "/nested/${level + 1}.css";`, href, 200, "text/css");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /import depth exceeds 5/);
+  assert.deepEqual(requested, [1, 2, 3, 4, 5]);
 });
 
 test("rejects third-party responsive image preload candidates in published HTML", async () => {
