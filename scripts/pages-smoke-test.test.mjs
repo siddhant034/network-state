@@ -219,7 +219,7 @@ test("decodes CSS escapes before extracting escaped resource functions and hosts
 
 test("CSS dependency tokenizer ignores URL-like text in strings and comments", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
-  const css = String.raw\`content: "url(https://fake.example/a.png) /* not a comment */";
+  const css = String.raw`content: "url(https://fake.example/a.png) /* not a comment */";
     /* @import "https://comment.example/x.css"; */
     .ok { background: url(/* separator */ "https://real.example/image.png"); }\`;
   assert.deepEqual(
@@ -230,7 +230,7 @@ test("CSS dependency tokenizer ignores URL-like text in strings and comments", a
 
 test("CSS tokenizer handles escaped url identifiers and direct imports with comments", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
-  const css = String.raw\`@import /* comment */ "https://theme.example/base.css";
+  const css = String.raw`@import /* comment */ "https://theme.example/base.css";
     .x { background: u\\72l(https://image.example/a.png); }\`;
   assert.deepEqual(
     extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
