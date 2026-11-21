@@ -448,3 +448,42 @@ test("rejects third-party responsive image preload candidates in published HTML"
     /Published resource redirected to an unexpected origin/,
   );
 });
+
+test("normalizes CSS import fragments to avoid duplicate requests and cycles", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    if (href === origin + "/assets/app.css") return response('@import "/nested/theme.css#first";', href, 200, "text/css");
+    if (href === origin + "/nested/theme.css") {
+      requested.push(href);
+      return response('@import "/nested/theme.css#second"; .theme{color:blue}', href, 200, "text/css");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.deepEqual(requested, [origin + "/nested/theme.css"]);
+});
+
+test("marks same-origin redirect destinations visited before scanning imports", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+    if (href === origin + "/assets/app.css") return response('@import "/alias.css";', href, 200, "text/css");
+    if (href === origin + "/alias.css") {
+      requested.push(href);
+      return response('@import "/nested/final.css"; .theme{color:blue}', origin + "/nested/final.css", 200, "text/css");
+    }
+    if (href === origin + "/nested/final.css") {
+      requested.push(href);
+      return response("body{color:green}", href, 200, "text/css");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.deepEqual(requested, [origin + "/alias.css"]);
+});
+
