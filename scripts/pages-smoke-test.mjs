@@ -484,7 +484,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
       }
       const importedUrl = assertSameOrigin(importedResponse.url || imported.href, pageUrl.origin, "Published CSS import");
       const importedType = importedResponse.headers.get("content-type") ?? "";
-      if (!/text\\/css/i.test(importedType)) {
+      if (!/text\/css/i.test(importedType)) {
         throw new Error(`Published CSS import has unexpected content type: ${importedType}`);
       }
       const importedBytes = await readBounded(importedResponse, ASSET_LIMIT, `Published CSS import ${importedUrl.pathname}`);
