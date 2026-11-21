@@ -247,6 +247,41 @@ test("removes comments inside unquoted CSS url tokens before origin resolution",
   );
 });
 
+test("extracts image-set string URLs without treating type descriptors as resources", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = '.hero { background-image: image-set("https://images.example/hero.avif" 1x type("image/avif"), "./hero.png" 2x type("image/png"), url("/fallback.webp") 3x); }';
+  assert.deepEqual(
+    extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
+    [
+      "https://images.example/hero.avif",
+      origin + "/assets/hero.png",
+      origin + "/fallback.webp",
+    ],
+  );
+});
+
+test("supports the legacy webkit image-set string syntax", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  const css = '.hero{background:-webkit-image-set("https://cdn.example/hero.png" 1x, "data:image/png;base64,AAAA" 2x)}';
+  assert.deepEqual(
+    extractCssResourceUrls(css, origin + "/assets/app.css").map((url) => url.href),
+    ["https://cdn.example/hero.png"],
+  );
+});
+
+test("rejects third-party image-set string candidates in published CSS", async () => {
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href.endsWith(".js")) return response("console.log(1)", href, 200, "text/javascript");
+    return response('.hero{background:image-set("https://images.example/remote.avif" 1x)}', href, 200, "text/css");
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published CSS resource redirected to an unexpected origin/,
+  );
+});
+
 test("fails closed on unterminated CSS url dependencies", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
   assert.throws(
