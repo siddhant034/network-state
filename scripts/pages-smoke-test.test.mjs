@@ -254,3 +254,11 @@ test("fails closed on unterminated CSS url dependencies", async () => {
     /Unterminated CSS url\(\) dependency/,
   );
 });
+
+test("fails closed on unterminated quoted CSS url dependencies", async () => {
+  const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
+  assert.throws(
+    () => extractCssResourceUrls('.x{background:url("https://evil.example/image.png"', origin + "/assets/app.css"),
+    /Unterminated CSS url\(\) dependency/,
+  );
+});
