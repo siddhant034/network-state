@@ -200,7 +200,11 @@ function collectCssDependencies(source) {
           }
           let value = "";
           while (valueStart < source.length && source[valueStart] !== ")") {
-            if (source[valueStart] === "\\") {
+            if (source[valueStart] === "/" && source[valueStart + 1] === "*") {
+              const commentEnd = source.indexOf("*/", valueStart + 2);
+              if (commentEnd < 0) throw new Error("Unterminated CSS comment inside url()");
+              valueStart = commentEnd + 2;
+            } else if (source[valueStart] === "\\") {
               const escape = readCssEscape(source, valueStart);
               value += escape.value;
               valueStart = escape.next;
@@ -208,6 +212,7 @@ function collectCssDependencies(source) {
               value += source[valueStart++];
             }
           }
+          if (valueStart >= source.length) throw new Error("Unterminated CSS url() dependency");
           values.push(value.trim());
           cursor = valueStart < source.length ? valueStart + 1 : valueStart;
           continue;
