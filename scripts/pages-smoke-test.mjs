@@ -15,12 +15,12 @@ export function parseSrcset(srcset) {
   let position = 0;
 
   while (position < srcset.length) {
-    while (position < srcset.length && /[\\s,]/.test(srcset[position])) position++;
+    while (position < srcset.length && /[\s,]/.test(srcset[position])) position++;
     if (position >= srcset.length) break;
 
     const start = position;
     // A data URL can contain commas; its URL token ends at whitespace.
-    while (position < srcset.length && !/\\s/.test(srcset[position])) position++;
+    while (position < srcset.length && !/\s/.test(srcset[position])) position++;
     let url = srcset.slice(start, position);
     while (url.endsWith(",")) url = url.slice(0, -1);
     if (url) urls.push(url);
@@ -45,7 +45,7 @@ export function extractResourceUrls(html, pageUrl) {
     if (tag === "link" && !isResourceLink) continue;
     const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
     for (const name of names) {
-      const value = attributes.match(new RegExp("\\b" + name + "\\s*=\\s*[\"']([^\"']+)[\"']", "i"))?.[1];
+      const value = attributes.match(new RegExp("\\b" + name + "\s*=\s*[\"']([^\"']+)[\"']", "i"))?.[1];
       if (value) resources.push(new URL(value, pageUrl));
     }
     if (tag === "img" || tag === "source") {
