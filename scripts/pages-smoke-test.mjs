@@ -85,7 +85,7 @@ export function extractResourceUrls(html, pageUrl) {
     );
     if (tag === "link" && !isResourceLink) continue;
 
-    const names = tag === "link" || tag === "image" || tag === "use"
+    const names = tag === "link" || tag === "image" || tag === "use" || tag === "feimage"
       ? ["href", "xlink:href"]
       : tag === "object"
         ? ["data"]
