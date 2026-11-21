@@ -148,3 +148,11 @@ test("rejects third-party stylesheet, font, image, or script references in publi
     /Published resource redirected to an unexpected origin/,
   );
 });
+
+test("parses srcset data URLs without treating their comma as a separator", () => {
+  const document = '<img srcset="data:image/png;base64,AAAA 1x, /small.png 2x, /large.png 3x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/small.png", origin + "/large.png"],
+  );
+});
