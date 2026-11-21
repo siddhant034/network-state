@@ -36,7 +36,7 @@ export function parseSrcset(srcset) {
 
 function getAttribute(attributes, name) {
   // Names are selected from this module's fixed allowlist, never from page content.
-  const pattern = new RegExp("(?:^|\\\\s)" + name + "\\\\s*=\\\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\\\s>]+))", "i");
+  const pattern = new RegExp("(?:^|\\s)" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i");
   const match = attributes.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
@@ -55,16 +55,16 @@ function decodeHtmlAttribute(value) {
     return Number.isInteger(numeric) && numeric > 0 && numeric <= 0x10ffff &&
       !(numeric >= 0xd800 && numeric <= 0xdfff)
       ? String.fromCodePoint(numeric)
-      : "\\uFFFD";
+      : "\uFFFD";
   });
 }
 
 export function extractInlineCss(html) {
   const styles = [];
-  for (const match of html.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style\\s*>/gi)) {
+  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
     styles.push(match[1]);
   }
-  const tagPattern = /<([a-z][a-z0-9:-]*)\\b([^>]*)>/gi;
+  const tagPattern = /<([a-z][a-z0-9:-]*)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const style = getAttribute(match[2], "style");
     if (style) styles.push(decodeHtmlAttribute(style));
@@ -74,11 +74,11 @@ export function extractInlineCss(html) {
 
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\\b([^>]*)>/gi;
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
     const type = getAttribute(attributes, "type")?.toLowerCase();
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
@@ -114,20 +114,20 @@ export function extractResourceUrls(html, pageUrl) {
 }
 export function decodeCssEscapes(value) {
   return value
-    .replace(/\\\\([0-9a-f]{1,6})(?:\\r\\n|[\\t\\n\\r\\f ])?/gi, (_, hex) => {
+    .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?/gi, (_, hex) => {
       const codePoint = Number.parseInt(hex, 16);
       return codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
-        ? "\\uFFFD"
+        ? "\uFFFD"
         : String.fromCodePoint(codePoint);
     })
-    .replace(/\\\\([\\t\\n\\r\\f])/g, "")
-    .replace(/\\\\([^\\r\\n\\f])/g, "$1");
+    .replace(/\\([\t\n\r\f])/g, "")
+    .replace(/\\([^\r\n\f])/g, "$1");
 }
 
 function skipCssTrivia(source, position) {
   let cursor = position;
   while (cursor < source.length) {
-    if (/\\s/.test(source[cursor])) {
+    if (/\s/.test(source[cursor])) {
       cursor++;
       continue;
     }
@@ -143,7 +143,7 @@ function skipCssTrivia(source, position) {
 }
 
 function readCssEscape(source, position) {
-  if (source[position] !== "\\\\" || position + 1 >= source.length) {
+  if (source[position] !== "\\" || position + 1 >= source.length) {
     return { value: source[position] ?? "", next: position + 1 };
   }
   let cursor = position + 1;
@@ -151,18 +151,18 @@ function readCssEscape(source, position) {
     const start = cursor;
     while (cursor < source.length && cursor - start < 6 && /[0-9a-f]/i.test(source[cursor])) cursor++;
     const point = Number.parseInt(source.slice(start, cursor), 16);
-    if (/\\s/.test(source[cursor] ?? "")) cursor++;
+    if (/\s/.test(source[cursor] ?? "")) cursor++;
     return {
       value: point === 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)
-        ? "\\uFFFD"
+        ? "\uFFFD"
         : String.fromCodePoint(point),
       next: cursor,
     };
   }
-  if (source[cursor] === "\\r" && source[cursor + 1] === "\\n") {
+  if (source[cursor] === "\r" && source[cursor + 1] === "\n") {
     return { value: "", next: cursor + 2 };
   }
-  if (/[\\r\\n\\f]/.test(source[cursor])) return { value: "", next: cursor + 1 };
+  if (/[\r\n\f]/.test(source[cursor])) return { value: "", next: cursor + 1 };
   return { value: source[cursor], next: cursor + 1 };
 }
 
@@ -171,7 +171,7 @@ function readCssIdentifier(source, position) {
   let cursor = position;
   while (cursor < source.length) {
     const character = source[cursor];
-    if (character === "\\\\") {
+    if (character === "\\") {
       const escape = readCssEscape(source, cursor);
       value += escape.value;
       cursor = escape.next;
@@ -190,7 +190,7 @@ function readCssString(source, position) {
   let cursor = position + 1;
   while (cursor < source.length) {
     if (source[cursor] === quote) return { value, next: cursor + 1 };
-    if (source[cursor] === "\\\\") {
+    if (source[cursor] === "\\") {
       const escape = readCssEscape(source, cursor);
       value += escape.value;
       cursor = escape.next;
@@ -265,7 +265,7 @@ function collectCssDependencies(source) {
       cursor = Math.max(atRule.next, cursor + 1);
       continue;
     }
-    if (/[a-z_-]/i.test(source[cursor]) || source[cursor] === "\\\\") {
+    if (/[a-z_-]/i.test(source[cursor]) || source[cursor] === "\\") {
       const identifier = readCssIdentifier(source, cursor);
       const functionName = identifier.value.toLowerCase();
       if (functionName === "image-set" || functionName === "-webkit-image-set") {
@@ -292,7 +292,7 @@ function collectCssDependencies(source) {
               const commentEnd = source.indexOf("*/", valueStart + 2);
               if (commentEnd < 0) throw new Error("Unterminated CSS comment inside url()");
               valueStart = commentEnd + 2;
-            } else if (source[valueStart] === "\\\\") {
+            } else if (source[valueStart] === "\\") {
               const escape = readCssEscape(source, valueStart);
               value += escape.value;
               valueStart = escape.next;
@@ -357,7 +357,7 @@ export function extractCssImports(css) {
                 const close = css.indexOf("*/", start + 2);
                 if (close < 0) throw new Error("Unterminated CSS comment inside @import url()");
                 start = close + 2;
-              } else if (css[start] === "\\\\") {
+              } else if (css[start] === "\\") {
                 const escape = readCssEscape(css, start);
                 value += escape.value;
                 start = escape.next;
@@ -375,7 +375,7 @@ export function extractCssImports(css) {
       cursor = Math.max(atRule.next, cursor + 1);
       continue;
     }
-    if (css[cursor] === "\\\\") {
+    if (css[cursor] === "\\") {
       cursor = readCssEscape(css, cursor).next;
     } else {
       cursor++;
@@ -457,19 +457,10 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     }
   }
 
-  const assets = extractAssets(html, pageUrl);
-  if (assets.length === 0 || assets.length > MAX_ASSETS) {
-    throw new Error(`Unexpected number of published JS/CSS assets: ${assets.length}`);
-  }
-  if (!assets.some((asset) => asset.pathname.endsWith(".js"))) {
-    throw new Error("Published HTML does not reference a JavaScript entry asset");
-  }
-  if (!assets.some((asset) => asset.pathname.endsWith(".css"))) {
-    throw new Error("Published HTML does not reference a CSS asset");
-  }
-
   const visitedStylesheets = new Set(
-    assets.filter((asset) => asset.pathname.endsWith(".css")).map((asset) => asset.href),
+    extractAssets(html, pageUrl)
+      .filter((asset) => asset.pathname.endsWith(".css"))
+      .map((asset) => asset.href),
   );
   let importedStylesheetCount = 0;
   async function inspectCss(css, stylesheetUrl, depth = 0) {
@@ -498,7 +489,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
       }
       const importedUrl = assertSameOrigin(importedResponse.url || imported.href, pageUrl.origin, "Published CSS import");
       const importedType = importedResponse.headers.get("content-type") ?? "";
-      if (!/text\\/css/i.test(importedType)) {
+      if (!/text\/css/i.test(importedType)) {
         throw new Error(`Published CSS import has unexpected content type: ${importedType}`);
       }
       const importedBytes = await readBounded(importedResponse, ASSET_LIMIT, `Published CSS import ${importedUrl.pathname}`);
@@ -510,6 +501,17 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   const inlineCss = extractInlineCss(html);
   for (const css of inlineCss) await inspectCss(css, pageUrl.href);
 
+  const assets = extractAssets(html, pageUrl);
+  if (assets.length === 0 || assets.length > MAX_ASSETS) {
+    throw new Error(`Unexpected number of published JS/CSS assets: ${assets.length}`);
+  }
+  if (!assets.some((asset) => asset.pathname.endsWith(".js"))) {
+    throw new Error("Published HTML does not reference a JavaScript entry asset");
+  }
+  if (!assets.some((asset) => asset.pathname.endsWith(".css"))) {
+    throw new Error("Published HTML does not reference a CSS asset");
+  }
+
   for (const asset of assets) {
     assertSameOrigin(asset.href, pageUrl.origin, "Published asset");
     const response = await request(asset);
@@ -519,14 +521,16 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     if (asset.pathname.endsWith(".js") && !/(?:javascript|ecmascript)/i.test(type)) {
       throw new Error(`JavaScript asset has unexpected content type: ${type}`);
     }
-    if (asset.pathname.endsWith(".css") && !/text\\/css/i.test(type)) {
+    if (asset.pathname.endsWith(".css") && !/text\/css/i.test(type)) {
       throw new Error(`CSS asset has unexpected content type: ${type}`);
     }
     const bytes = await readBounded(response, ASSET_LIMIT, `Published asset ${asset.pathname}`);
     if (bytes.byteLength === 0) throw new Error(`Published asset is empty: ${asset.pathname}`);
     if (asset.pathname.endsWith(".css")) {
       const stylesheetUrl = assertSameOrigin(response.url || asset.href, pageUrl.origin, "Published stylesheet");
-      await inspectCss(new TextDecoder().decode(bytes), stylesheetUrl.href);
+      const stylesheet = new URL(stylesheetUrl.href);
+      if (!visitedStylesheets.has(stylesheet.href)) visitedStylesheets.add(stylesheet.href);
+      await inspectCss(new TextDecoder().decode(bytes), stylesheet.href);
     }
   }
   return { pageUrl: pageUrl.href, assetCount: assets.length, resourceCount: resources.length };
