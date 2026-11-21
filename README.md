@@ -47,6 +47,7 @@ Run checks:
 npm test
 npm run build
 npm run test:e2e
+node --test scripts/pages-smoke-test.test.mjs
 ```
 
 ## Long-running session safeguards
