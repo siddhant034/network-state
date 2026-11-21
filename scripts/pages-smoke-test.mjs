@@ -10,6 +10,28 @@ export function extractAssets(html, pageUrl) {
     .map((match) => new URL(match[1], pageUrl));
 }
 
+export function parseSrcset(srcset) {
+  const urls = [];
+  let position = 0;
+
+  while (position < srcset.length) {
+    while (position < srcset.length && /[\\s,]/.test(srcset[position])) position++;
+    if (position >= srcset.length) break;
+
+    const start = position;
+    // A data URL can contain commas; its URL token ends at whitespace.
+    while (position < srcset.length && !/\\s/.test(srcset[position])) position++;
+    let url = srcset.slice(start, position);
+    while (url.endsWith(",")) url = url.slice(0, -1);
+    if (url) urls.push(url);
+
+    while (position < srcset.length && srcset[position] !== ",") position++;
+    if (srcset[position] === ",") position++;
+  }
+
+  return urls;
+}
+
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
   const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\b([^>]*)>/gi;
@@ -29,9 +51,8 @@ export function extractResourceUrls(html, pageUrl) {
     if (tag === "img" || tag === "source") {
       const srcset = attributes.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1];
       if (srcset) {
-        for (const candidate of srcset.split(",")) {
-          const value = candidate.trim().split(/\s+/, 1)[0];
-          if (value && !value.startsWith("data:")) resources.push(new URL(value, pageUrl));
+        for (const value of parseSrcset(srcset)) {
+          if (!value.startsWith("data:")) resources.push(new URL(value, pageUrl));
         }
       }
     }
