@@ -156,3 +156,11 @@ test("parses srcset data URLs without treating their comma as a separator", () =
     [origin + "/small.png", origin + "/large.png"],
   );
 });
+
+test("parses srcset candidates with and without descriptors", () => {
+  const document = '<img srcset="/one.png, /two.png 2x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/one.png", origin + "/two.png"],
+  );
+});
