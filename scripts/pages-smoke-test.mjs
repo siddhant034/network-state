@@ -399,6 +399,12 @@ export function assertSameOrigin(actualUrl, expectedOrigin, label) {
   return actual;
 }
 
+export function normalizeStylesheetUrl(value) {
+  const url = new URL(value);
+  url.hash = "";
+  return url.href;
+}
+
 async function readBounded(response, limit, label) {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > limit) {
@@ -460,7 +466,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   const visitedStylesheets = new Set(
     extractAssets(html, pageUrl)
       .filter((asset) => asset.pathname.endsWith(".css"))
-      .map((asset) => asset.href),
+      .map((asset) => normalizeStylesheetUrl(asset.href)),
   );
   let importedStylesheetCount = 0;
   async function inspectCss(css, stylesheetUrl, depth = 0) {
@@ -478,23 +484,26 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
       if (imported.protocol !== "https:") {
         throw new Error(`Published CSS import uses an unexpected protocol: ${imported.protocol}`);
       }
-      if (visitedStylesheets.has(imported.href)) continue;
+      const importedHref = normalizeStylesheetUrl(imported.href);
+      if (visitedStylesheets.has(importedHref)) continue;
       if (depth >= 5) throw new Error("Published CSS import depth exceeds 5");
       importedStylesheetCount++;
       if (importedStylesheetCount > 20) throw new Error("Published CSS import count exceeds 20");
-      visitedStylesheets.add(imported.href);
-      const importedResponse = await request(imported);
+      visitedStylesheets.add(importedHref);
+      const importedResponse = await request(importedHref);
       if (!importedResponse.ok) {
         throw new Error(`Published CSS import returned HTTP ${importedResponse.status}: ${imported.pathname}`);
       }
-      const importedUrl = assertSameOrigin(importedResponse.url || imported.href, pageUrl.origin, "Published CSS import");
+      const importedUrl = assertSameOrigin(importedResponse.url || importedHref, pageUrl.origin, "Published CSS import");
+      const finalImportedHref = normalizeStylesheetUrl(importedUrl.href);
+      visitedStylesheets.add(finalImportedHref);
       const importedType = importedResponse.headers.get("content-type") ?? "";
       if (!/text\/css/i.test(importedType)) {
         throw new Error(`Published CSS import has unexpected content type: ${importedType}`);
       }
       const importedBytes = await readBounded(importedResponse, ASSET_LIMIT, `Published CSS import ${importedUrl.pathname}`);
       if (importedBytes.byteLength === 0) throw new Error(`Published CSS import is empty: ${importedUrl.pathname}`);
-      await inspectCss(new TextDecoder().decode(importedBytes), importedUrl.href, depth + 1);
+      await inspectCss(new TextDecoder().decode(importedBytes), finalImportedHref, depth + 1);
     }
   }
 
