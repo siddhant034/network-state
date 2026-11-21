@@ -6,7 +6,7 @@ const MAX_ASSETS = 20;
 const TIMEOUT_MS = 15_000;
 
 export function extractAssets(html, pageUrl) {
-  return [...html.matchAll(/(?:src|href)=[\"']([^\"']+\\.(?:js|css)(?:\\?[^\\"']*)?)[\"']/gi)]
+  return [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/gi)]
     .map((match) => new URL(match[1], pageUrl));
 }
 
@@ -88,7 +88,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     if (asset.pathname.endsWith(".js") && !/(?:javascript|ecmascript)/i.test(type)) {
       throw new Error(`JavaScript asset has unexpected content type: ${type}`);
     }
-    if (asset.pathname.endsWith(".css") && !/text\\/css/i.test(type)) {
+    if (asset.pathname.endsWith(".css") && !/text\/css/i.test(type)) {
       throw new Error(`CSS asset has unexpected content type: ${type}`);
     }
     const bytes = await readBounded(response, ASSET_LIMIT, `Published asset ${asset.pathname}`);
