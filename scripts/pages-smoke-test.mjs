@@ -55,16 +55,16 @@ function decodeHtmlAttribute(value) {
     return Number.isInteger(numeric) && numeric > 0 && numeric <= 0x10ffff &&
       !(numeric >= 0xd800 && numeric <= 0xdfff)
       ? String.fromCodePoint(numeric)
-      : "\\uFFFD";
+      : "\uFFFD";
   });
 }
 
 export function extractInlineCss(html) {
   const styles = [];
-  for (const match of html.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style\\s*>/gi)) {
+  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
     styles.push(match[1]);
   }
-  const tagPattern = /<([a-z][a-z0-9:-]*)\\b([^>]*)>/gi;
+  const tagPattern = /<([a-z][a-z0-9:-]*)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const style = getAttribute(match[2], "style");
     if (style) styles.push(decodeHtmlAttribute(style));
@@ -74,11 +74,11 @@ export function extractInlineCss(html) {
 
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\\b([^>]*)>/gi;
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
     const type = getAttribute(attributes, "type")?.toLowerCase();
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
@@ -384,6 +384,16 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
     assertSameOrigin(resource.href, pageUrl.origin, "Published resource");
     if (resource.protocol !== "https:") {
       throw new Error(`Published resource uses an unexpected protocol: ${resource.protocol}`);
+    }
+  }
+
+  const inlineCssResources = extractInlineCss(html).flatMap((css) =>
+    extractCssResourceUrls(css, pageUrl),
+  );
+  for (const resource of inlineCssResources) {
+    assertSameOrigin(resource.href, pageUrl.origin, "Published inline CSS resource");
+    if (resource.protocol !== "https:") {
+      throw new Error(`Published inline CSS resource uses an unexpected protocol: ${resource.protocol}`);
     }
   }
 
