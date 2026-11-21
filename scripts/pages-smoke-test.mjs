@@ -41,26 +41,70 @@ function getAttribute(attributes, name) {
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
+function decodeHtmlAttribute(value) {
+  return value.replace(/&(#(?:x[0-9a-f]+|[0-9]+)|amp|quot|apos|lt|gt);/gi, (entity, token) => {
+    const normalized = token.toLowerCase();
+    if (normalized === "amp") return "&";
+    if (normalized === "quot") return '"';
+    if (normalized === "apos") return "'";
+    if (normalized === "lt") return "<";
+    if (normalized === "gt") return ">";
+    const numeric = normalized.startsWith("#x")
+      ? Number.parseInt(normalized.slice(2), 16)
+      : Number.parseInt(normalized.slice(1), 10);
+    return Number.isInteger(numeric) && numeric > 0 && numeric <= 0x10ffff &&
+      !(numeric >= 0xd800 && numeric <= 0xdfff)
+      ? String.fromCodePoint(numeric)
+      : "\\uFFFD";
+  });
+}
+
+export function extractInlineCss(html) {
+  const styles = [];
+  for (const match of html.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style\\s*>/gi)) {
+    styles.push(match[1]);
+  }
+  const tagPattern = /<([a-z][a-z0-9:-]*)\\b([^>]*)>/gi;
+  for (const match of html.matchAll(tagPattern)) {
+    const style = getAttribute(match[2], "style");
+    if (style) styles.push(decodeHtmlAttribute(style));
+  }
+  return styles;
+}
+
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link)\b([^>]*)>/gi;
+  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\\b([^>]*)>/gi;
   for (const match of html.matchAll(tagPattern)) {
     const tag = match[1].toLowerCase();
     const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const type = getAttribute(attributes, "type")?.toLowerCase();
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
     );
     if (tag === "link" && !isResourceLink) continue;
-    const names = tag === "link" ? ["href"] : tag === "video" ? ["src", "poster"] : ["src"];
+
+    const names = tag === "link" || tag === "image" || tag === "use"
+      ? ["href", "xlink:href"]
+      : tag === "object"
+        ? ["data"]
+        : tag === "video"
+          ? ["src", "poster"]
+          : tag === "input"
+            ? type === "image" ? ["src"] : []
+            : tag === "embed"
+              ? ["src"]
+              : ["src"];
     for (const name of names) {
       const value = getAttribute(attributes, name);
-      if (value) resources.push(new URL(value, pageUrl));
+      if (value) resources.push(new URL(decodeHtmlAttribute(value), pageUrl));
     }
-    if (tag === "img" || tag === "source") {
-      const srcset = getAttribute(attributes, "srcset");
+
+    if (tag === "img" || tag === "source" || (tag === "link" && rel.includes("preload"))) {
+      const srcset = getAttribute(attributes, tag === "link" ? "imagesrcset" : "srcset");
       if (srcset) {
-        for (const value of parseSrcset(srcset)) {
+        for (const value of parseSrcset(decodeHtmlAttribute(srcset))) {
           if (!value.startsWith("data:")) resources.push(new URL(value, pageUrl));
         }
       }
@@ -68,7 +112,6 @@ export function extractResourceUrls(html, pageUrl) {
   }
   return resources;
 }
-
 export function decodeCssEscapes(value) {
   return value
     .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?/gi, (_, hex) => {
