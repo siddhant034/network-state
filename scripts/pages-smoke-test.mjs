@@ -22,8 +22,10 @@ export function parseSrcset(srcset) {
     // A data URL can contain commas; its URL token ends at whitespace.
     while (position < srcset.length && !/\s/.test(srcset[position])) position++;
     let url = srcset.slice(start, position);
+    const endedCandidate = url.endsWith(",");
     while (url.endsWith(",")) url = url.slice(0, -1);
     if (url) urls.push(url);
+    if (endedCandidate) continue;
 
     while (position < srcset.length && srcset[position] !== ",") position++;
     if (srcset[position] === ",") position++;
