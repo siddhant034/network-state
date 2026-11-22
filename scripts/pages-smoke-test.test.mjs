@@ -853,3 +853,26 @@ test("allows same-origin literal network calls and leaves user-configured target
   const result = await verifyPublishedSite(origin + "/", fetchImpl);
   assert.equal(result.assetCount, 2);
 });
+
+
+test("event handler scanner preserves quoted greater-than signs and full attribute values", () => {
+  const document = '<div title="> is data" onclick="fetch(\'https://tracker.example/pixel?x=>\')">x</div>';
+  assert.deepEqual(extractInlineEventHandlers(document), [
+    "fetch('https://tracker.example/pixel?x=>')",
+  ]);
+});
+
+test("event handler scanner skips comments and script/style raw text", () => {
+  const document = '<!-- <img onerror="fetch(\'https://comment.example/\')"> -->' +
+    '<script>const template = \'<img onclick="fetch(https://fake.example)">\';</script>' +
+    '<style>.sample{content:"<img onerror=fetch(https://fake.example)>";}</style>' +
+    '<button onclick="fetch(\'/safe\')">Safe</button>';
+  assert.deepEqual(extractInlineEventHandlers(document), ["fetch('/safe')"]);
+});
+
+test("event handler scanner fails closed on unterminated quoted attributes", () => {
+  assert.throws(
+    () => extractInlineEventHandlers('<img onerror="fetch(\'https://tracker.example/\')>'),
+    /Unterminated quoted HTML attribute/,
+  );
+});
