@@ -436,13 +436,45 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     return undefined;
   }
 
+  const boundFetchUrls = new Map();
+
   function apiFromRhs(start) {
     const token = tokens[start];
     if (token?.type !== "identifier") return undefined;
-    if (directApis.has(token.value)) return { api: token.value, next: start + 1 };
-    const alias = functionAliases.get(token.value);
-    if (alias) return { api: alias, next: start + 1 };
-    return memberApiAt(start);
+
+    let resolved;
+    if (directApis.has(token.value)) {
+      resolved = { api: token.value, next: start + 1 };
+    } else {
+      const alias = functionAliases.get(token.value);
+      if (alias) {
+        resolved = { api: alias, next: start + 1, boundUrl: boundFetchUrls.get(token.value) };
+      } else {
+        resolved = memberApiAt(start);
+      }
+    }
+    if (!resolved) return undefined;
+
+    // Preserve the URL argument of a statically bound fetch function:
+    // const request = fetch.bind(window, "https://host/path");
+    // request() always uses that bound first argument, even if a later
+    // call supplies another URL.
+    const bindDot = resolved.next;
+    if (tokens[bindDot]?.value === "." &&
+        tokens[bindDot + 1]?.value === "bind" &&
+        tokens[bindDot + 2]?.value === "(") {
+      const bindOpen = bindDot + 2;
+      const firstBoundArgument = bindOpen + 3; // skip thisArg and comma
+      const boundUrl = tokens[bindOpen + 2]?.value === "," 
+        ? literalUrl(tokens[firstBoundArgument])
+        : undefined;
+      return {
+        api: resolved.api,
+        next: bindOpen + 1,
+        boundUrl: resolved.api === "fetch" ? boundUrl : undefined,
+      };
+    }
+    return resolved;
   }
 
   // A small fixed-point pass resolves aliases declared in either order and
@@ -464,9 +496,16 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         const resolved = apiFromRhs(index + 1);
         if (resolved && functionAliases.get(name) !== resolved.api) {
           functionAliases.set(name, resolved.api);
+          if (resolved.boundUrl !== undefined) boundFetchUrls.set(name, resolved.boundUrl);
+          else boundFetchUrls.delete(name);
+          changed = true;
+        } else if (resolved && resolved.boundUrl !== undefined &&
+                   boundFetchUrls.get(name) !== resolved.boundUrl) {
+          boundFetchUrls.set(name, resolved.boundUrl);
           changed = true;
         } else if (!resolved && functionAliases.has(name)) {
           functionAliases.delete(name);
+          boundFetchUrls.delete(name);
           changed = true;
         }
       }
@@ -514,6 +553,12 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       const resolved = apiFromRhs(index + 3);
       if (resolved && functionAliases.get(name) !== resolved.api) {
         functionAliases.set(name, resolved.api);
+        if (resolved.boundUrl !== undefined) boundFetchUrls.set(name, resolved.boundUrl);
+        else boundFetchUrls.delete(name);
+        changed = true;
+      } else if (resolved && resolved.boundUrl !== undefined &&
+                 boundFetchUrls.get(name) !== resolved.boundUrl) {
+        boundFetchUrls.set(name, resolved.boundUrl);
         changed = true;
       }
     }
@@ -567,7 +612,9 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     const aliasApi = token.type === "identifier" ? functionAliases.get(token.value) : undefined;
     if (aliasApi) {
       const openIndex = callOpenAfter(index);
-      if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
+      if (aliasApi === "fetch" && boundFetchUrls.has(token.value)) {
+        urls.push(boundFetchUrls.get(token.value));
+      } else if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
         auditCall(openIndex);
       } else if (aliasApi === "open" && openIndex >= 0 &&
           tokens[openIndex + 1]?.type === "string" &&
