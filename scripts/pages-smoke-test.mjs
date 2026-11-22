@@ -7,6 +7,88 @@ const MAX_ASSETS = 20;
 const MODULE_TOTAL_LIMIT = 20 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 
+export function scanHtmlTags(html) {
+  const tags = [];
+  let cursor = 0;
+
+  while (cursor < html.length) {
+    const opening = html.indexOf("<", cursor);
+    if (opening < 0) break;
+    cursor = opening;
+
+    if (html.startsWith("<!--", cursor)) {
+      const close = html.indexOf("-->", cursor + 4);
+      if (close < 0) throw new Error("Unterminated HTML comment while scanning resource tags");
+      cursor = close + 3;
+      continue;
+    }
+
+    const next = html[cursor + 1];
+    if (next === "!" || next === "?") {
+      let quote;
+      cursor += 2;
+      while (cursor < html.length) {
+        const character = html[cursor++];
+        if (quote) {
+          if (character === quote) quote = undefined;
+        } else if (character === '"' || character === "'") {
+          quote = character;
+        } else if (character === ">") {
+          break;
+        }
+      }
+      if (cursor >= html.length && html.at(-1) !== ">") {
+        throw new Error("Unterminated HTML declaration while scanning resource tags");
+      }
+      continue;
+    }
+
+    const closing = next === "/";
+    let nameStart = cursor + (closing ? 2 : 1);
+    while (/[\\s]/.test(html[nameStart] ?? "")) nameStart++;
+    if (!/[a-z]/i.test(html[nameStart] ?? "")) {
+      cursor++;
+      continue;
+    }
+    let nameEnd = nameStart + 1;
+    while (/[a-z0-9:-]/i.test(html[nameEnd] ?? "")) nameEnd++;
+    const tag = html.slice(nameStart, nameEnd).toLowerCase();
+
+    let quote;
+    let end = nameEnd;
+    for (; end < html.length; end++) {
+      const character = html[end];
+      if (quote) {
+        if (character === quote) quote = undefined;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === ">") {
+        break;
+      }
+    }
+    if (end >= html.length || quote) {
+      throw new Error("Unterminated HTML tag or quoted attribute while scanning resource tags");
+    }
+
+    const attributes = html.slice(nameEnd, end);
+    const entry = { tag, attributes, closing, content: undefined };
+    cursor = end + 1;
+
+    if (!closing && (tag === "script" || tag === "style")) {
+      const closingPattern = new RegExp("</\\s*" + tag + "\\s*>", "ig");
+      closingPattern.lastIndex = cursor;
+      const close = closingPattern.exec(html);
+      if (!close) throw new Error("Unterminated HTML " + tag + " element while scanning resource tags");
+      entry.content = html.slice(cursor, close.index);
+      cursor = closingPattern.lastIndex;
+    }
+
+    tags.push(entry);
+  }
+
+  return tags;
+}
+
 export function extractAssets(html, pageUrl) {
   const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   const assets = new Map();
