@@ -10,70 +10,47 @@ const TIMEOUT_MS = 15_000;
 export function scanHtmlTags(html) {
   const tags = [];
   let cursor = 0;
-
   while (cursor < html.length) {
     const opening = html.indexOf("<", cursor);
     if (opening < 0) break;
     cursor = opening;
-
     if (html.startsWith("<!--", cursor)) {
       const close = html.indexOf("-->", cursor + 4);
       if (close < 0) throw new Error("Unterminated HTML comment while scanning resource tags");
       cursor = close + 3;
       continue;
     }
-
     const next = html[cursor + 1];
     if (next === "!" || next === "?") {
-      let quote;
+      let quote, closed = false;
       cursor += 2;
       while (cursor < html.length) {
         const character = html[cursor++];
-        if (quote) {
-          if (character === quote) quote = undefined;
-        } else if (character === '"' || character === "'") {
-          quote = character;
-        } else if (character === ">") {
-          break;
-        }
+        if (quote) { if (character === quote) quote = undefined; }
+        else if (character === '"' || character === "'") quote = character;
+        else if (character === ">") { closed = true; break; }
       }
-      if (cursor >= html.length && html.at(-1) !== ">") {
-        throw new Error("Unterminated HTML declaration while scanning resource tags");
-      }
+      if (!closed || quote) throw new Error("Unterminated HTML declaration while scanning resource tags");
       continue;
     }
-
     const closing = next === "/";
     let nameStart = cursor + (closing ? 2 : 1);
-    while (/[\\s]/.test(html[nameStart] ?? "")) nameStart++;
-    if (!/[a-z]/i.test(html[nameStart] ?? "")) {
-      cursor++;
-      continue;
-    }
+    while (/\s/.test(html[nameStart] ?? "")) nameStart++;
+    if (!/[a-z]/i.test(html[nameStart] ?? "")) { cursor++; continue; }
     let nameEnd = nameStart + 1;
     while (/[a-z0-9:-]/i.test(html[nameEnd] ?? "")) nameEnd++;
     const tag = html.slice(nameStart, nameEnd).toLowerCase();
-
-    let quote;
-    let end = nameEnd;
+    let quote, end = nameEnd;
     for (; end < html.length; end++) {
       const character = html[end];
-      if (quote) {
-        if (character === quote) quote = undefined;
-      } else if (character === '"' || character === "'") {
-        quote = character;
-      } else if (character === ">") {
-        break;
-      }
+      if (quote) { if (character === quote) quote = undefined; }
+      else if (character === '"' || character === "'") quote = character;
+      else if (character === ">") break;
     }
-    if (end >= html.length || quote) {
-      throw new Error("Unterminated HTML tag or quoted attribute while scanning resource tags");
-    }
-
+    if (end >= html.length || quote) throw new Error("Unterminated HTML tag or quoted attribute while scanning resource tags");
     const attributes = html.slice(nameEnd, end);
     const entry = { tag, attributes, closing, content: undefined };
     cursor = end + 1;
-
     if (!closing && (tag === "script" || tag === "style")) {
       const closingPattern = new RegExp("</\\s*" + tag + "\\s*>", "ig");
       closingPattern.lastIndex = cursor;
@@ -82,35 +59,26 @@ export function scanHtmlTags(html) {
       entry.content = html.slice(cursor, close.index);
       cursor = closingPattern.lastIndex;
     }
-
     tags.push(entry);
   }
-
   return tags;
 }
 
 export function extractAssets(html, pageUrl) {
   const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   const assets = new Map();
-
   for (const { tag, attributes, closing } of scanHtmlTags(html)) {
     if (closing || (tag !== "script" && tag !== "link")) continue;
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
     const as = getAttribute(attributes, "as")?.toLowerCase();
-    const isAssetLink = tag === "link" && (
-      rel.includes("stylesheet") ||
-      rel.includes("modulepreload") ||
-      (rel.includes("preload") && (as === "script" || as === "style"))
-    );
+    const isAssetLink = tag === "link" && (rel.includes("stylesheet") || rel.includes("modulepreload") || (rel.includes("preload") && (as === "script" || as === "style")));
     if (tag === "link" && !isAssetLink) continue;
-
     const value = getAttribute(attributes, tag === "script" ? "src" : "href");
     if (!value) continue;
     const asset = new URL(decodeHtmlAttribute(value), documentBaseUrl);
-    if (!/\\.(?:js|css)$/i.test(asset.pathname)) continue;
+    if (!/\.(?:js|css)$/i.test(asset.pathname)) continue;
     assets.set(asset.href, asset);
   }
-
   return [...assets.values()];
 }
 
@@ -177,35 +145,21 @@ export function extractResourceUrls(html, pageUrl) {
   const resourceTags = new Set(["script", "img", "source", "iframe", "video", "audio", "track", "link", "object", "embed", "input", "image", "use", "feimage"]);
   for (const { tag, attributes, closing } of scanHtmlTags(html)) {
     if (closing || !resourceTags.has(tag)) continue;
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
     const type = getAttribute(attributes, "type")?.toLowerCase();
-    const isResourceLink = tag === "link" && rel.some((value) =>
-      ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
-    );
+    const isResourceLink = tag === "link" && rel.some((value) => ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value));
     if (tag === "link" && !isResourceLink) continue;
-
     const names = tag === "link" || tag === "image" || tag === "use" || tag === "feimage"
       ? ["href", "xlink:href"]
-      : tag === "object"
-        ? ["data"]
-        : tag === "video"
-          ? ["src", "poster"]
-          : tag === "input"
-            ? type === "image" ? ["src"] : []
-            : tag === "embed"
-              ? ["src"]
-              : ["src"];
+      : tag === "object" ? ["data"] : tag === "video" ? ["src", "poster"] : tag === "input" ? (type === "image" ? ["src"] : []) : tag === "embed" ? ["src"] : ["src"];
     for (const name of names) {
       const value = getAttribute(attributes, name);
       if (value) resources.push(new URL(decodeHtmlAttribute(value), documentBaseUrl));
     }
-
     if (tag === "img" || tag === "source" || (tag === "link" && rel.includes("preload"))) {
       const srcset = getAttribute(attributes, tag === "link" ? "imagesrcset" : "srcset");
-      if (srcset) {
-        for (const value of parseSrcset(decodeHtmlAttribute(srcset))) {
-          if (!value.startsWith("data:")) resources.push(new URL(value, documentBaseUrl));
-        }
+      if (srcset) for (const value of parseSrcset(decodeHtmlAttribute(srcset))) {
+        if (!value.startsWith("data:")) resources.push(new URL(value, documentBaseUrl));
       }
     }
   }
