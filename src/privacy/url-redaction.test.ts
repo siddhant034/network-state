@@ -8,7 +8,10 @@ describe("redactSensitivePath", () => {
     ["/reset/one-time-token", "/reset/[redacted]"],
     ["/token=secret-value/users/123", "/token=[redacted]/users/123"],
     ["/%61ccess_token/abc123/resource", "/%61ccess_token/[redacted]/resource"],
-    ["/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signaturevalue1234567890", "/[redacted]"]
+    ["/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signaturevalue1234567890", "/[redacted]"],
+    ["/users/alex@example.com/profile", "/users/[redacted]/profile"],
+    ["/users/alex%2Balerts%40example.com/profile", "/users/[redacted]/profile"],
+    ["/contact/not-an-email/profile", "/contact/not-an-email/profile"]
   ])("redacts %s", (input, expected) => {
     expect(redactSensitivePath(input)).toBe(expected);
   });
