@@ -12,7 +12,7 @@ function response(body, url, status = 200, type = "text/html", headers = {}) {
 }
 
 test("extracts JS and CSS assets relative to the published page", () => {
-  const assets = extractAssets('<script src="assets/main.js"></script><link href="/style.css?v=2">', new URL(origin + "/project/"));
+  const assets = extractAssets('<script src="assets/main.js"></script><link rel="stylesheet" href="/style.css?v=2">', new URL(origin + "/project/"));
   assert.deepEqual(assets.map((asset) => asset.href), [
     origin + "/project/assets/main.js",
     origin + "/style.css?v=2",
@@ -21,10 +21,31 @@ test("extracts JS and CSS assets relative to the published page", () => {
 
 test("resolves assets against the first document base URL", () => {
   const document = '<head><base href="/app/"><base href="https://ignored.example/"></head>' +
-    '<script src="assets/main.js"></script><link href="style.css" rel="stylesheet">';
+    '<script src = assets/main.js></script><link rel="stylesheet" href=style.css>';
   assert.deepEqual(
     extractAssets(document, new URL(origin + "/project/")).map((asset) => asset.href),
     [origin + "/app/assets/main.js", origin + "/app/style.css"],
+  );
+});
+
+test("resolves responsive image candidates against the document base URL", () => {
+  const document = '<head><base href="/static/images/"></head>' +
+    '<img srcset="small.webp 1x, ../large.webp 2x, data:image/gif;base64,AAAA 3x">';
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/project/")).map((url) => url.href),
+    [origin + "/static/images/small.webp", origin + "/static/large.webp"],
+  );
+});
+
+test("entry asset extraction handles spaced and unquoted attributes without treating links as assets", () => {
+  const document = '<a href="/docs/example.js">Documentation</a>' +
+    '<script src = assets/main.js></script>' +
+    '<link rel="stylesheet" href=styles/app.css>' +
+    '<link rel="preload" as="font" href="/font.css">' +
+    '<link rel="preload" as="script" href="/chunks/runtime.js">';
+  assert.deepEqual(
+    extractAssets(document, new URL(origin + "/project/")).map((asset) => asset.href),
+    [origin + "/project/assets/main.js", origin + "/project/styles/app.css", origin + "/chunks/runtime.js"],
   );
 });
 
