@@ -446,8 +446,8 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   }
 
   // A small fixed-point pass resolves aliases declared in either order and
-  // bounded alias chains. Dynamic assignments and destructuring are purposely
-  // not guessed; the verifier remains a static, fail-closed dependency audit.
+  // bounded alias chains. Dynamic assignments remain outside this static model.
+  let aliasesConverged = false;
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
     for (let index = 0; index < tokens.length - 3; index++) {
@@ -498,7 +498,13 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         changed = true;
       }
     }
-    if (!changed) break;
+    if (!changed) {
+      aliasesConverged = true;
+      break;
+    }
+  }
+  if (!aliasesConverged) {
+    throw new Error("JavaScript network API alias depth exceeds 8");
   }
 
   for (let index = 0; index < tokens.length; index++) {
