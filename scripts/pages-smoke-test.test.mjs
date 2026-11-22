@@ -818,6 +818,21 @@ test("extracts literal JavaScript request URLs from supported network APIs", () 
   ]);
 });
 
+test("audits literal computed and optional network API calls", () => {
+  const source = String.raw`window["fetch"]("https://tracker.example/computed");
+    globalThis["fetch"]?.("/safe/optional");
+    navigator["sendBeacon"]("/pixel", payload);
+    xhr["open"]("POST", "https://api.example/submit", true);
+    new window["WebSocket"]("wss://socket.example/live");`;
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://tracker.example/computed",
+    "/safe/optional",
+    "/pixel",
+    "https://api.example/submit",
+    "wss://socket.example/live",
+  ]);
+});
+
 test("audits network calls inside template expressions without scanning template text", () => {
   assert.deepEqual(
     extractJavaScriptNetworkUrls('const label = `prefix ${fetch("https://tracker.example/inside")} suffix`;'),
@@ -870,6 +885,25 @@ test("extracts inline event handler code for privacy scanning", () => {
     "fetch('https://tracker.example/click')",
     "navigator.sendBeacon('/pixel', data)",
   ]);
+});
+
+test("rejects a computed-property third-party fetch before contacting it", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('window["fetch"]("https://tracker.example/computed");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/computed"), false);
 });
 
 test("rejects a third-party literal fetch in a same-origin JavaScript asset before contacting it", async () => {
