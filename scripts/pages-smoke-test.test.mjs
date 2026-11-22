@@ -706,3 +706,45 @@ test("rejects third-party importScripts dependencies in a same-origin worker", a
   );
   assert.equal(requests.includes("https://tracker.example/legacy.js"), false);
 });
+
+
+test("rejects an off-origin redirect before the verifier follows it", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response("", href, 302, "text/javascript", { location: "https://tracker.example/remote.js" });
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published request redirect redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/remote.js"), false);
+});
+
+test("follows bounded same-origin redirects manually", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response("", href, 302, "text/javascript", { location: "/assets/final.js" });
+    }
+    if (href === origin + "/assets/final.js") return response("console.log(1)", href, 200, "text/javascript");
+    throw new Error("unexpected request: " + href);
+  };
+  await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.deepEqual(requests, [
+    origin + "/",
+    origin + "/assets/app.css",
+    origin + "/assets/app.js",
+    origin + "/assets/final.js",
+  ]);
+});
