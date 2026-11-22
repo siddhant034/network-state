@@ -158,8 +158,41 @@ export function extractJavaScriptDependencies(source) {
         tokens[index + 4]?.value === "," && tokens[index + 5]?.value === "import" &&
         tokens[index + 6]?.value === "." && tokens[index + 7]?.value === "meta" &&
         tokens[index + 8]?.value === "." && tokens[index + 9]?.value === "url") {
-      resources.push(tokens[index + 3].value);
+      const resource = tokens[index + 3].value;
+      resources.push(resource);
+      if (/\.m?js(?:[?#]|$)/i.test(resource)) modules.push(resource);
       index += 9;
+      continue;
+    }
+
+    if (token.value === "importScripts" && tokens[index + 1]?.value === "(") {
+      let cursor = index + 2;
+      while (cursor < tokens.length && tokens[cursor].value !== ")") {
+        if (tokens[cursor].type !== "string") {
+          throw new Error("Cannot audit non-literal importScripts dependency");
+        }
+        modules.push(tokens[cursor].value);
+        cursor++;
+        if (tokens[cursor]?.value === ",") cursor++;
+        else if (tokens[cursor]?.value !== ")") throw new Error("Cannot audit importScripts arguments");
+      }
+      if (tokens[cursor]?.value !== ")") throw new Error("Unterminated importScripts call");
+      index = cursor;
+      continue;
+    }
+
+    if (token.value === "new" && ["Worker", "SharedWorker"].includes(tokens[index + 1]?.value) &&
+        tokens[index + 2]?.value === "(" && tokens[index + 3]?.type === "string") {
+      modules.push(tokens[index + 3].value);
+      index += 3;
+      continue;
+    }
+
+    if (token.value === "serviceWorker" && tokens[index + 1]?.value === "." &&
+        tokens[index + 2]?.value === "register" && tokens[index + 3]?.value === "(" &&
+        tokens[index + 4]?.type === "string") {
+      modules.push(tokens[index + 4].value);
+      index += 4;
       continue;
     }
 
