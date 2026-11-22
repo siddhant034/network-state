@@ -408,25 +408,29 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     if (direct >= 0) return { openIndex: direct, mode: "direct" };
 
     let methodIndex;
+    let invocationIndex;
     if (tokens[index + 1]?.value === "." &&
         tokens[index + 2]?.type === "identifier") {
       methodIndex = index + 2;
+      invocationIndex = methodIndex;
     } else if (tokens[index + 1]?.value === "?" &&
         tokens[index + 2]?.value === "." &&
         tokens[index + 3]?.type === "identifier") {
       methodIndex = index + 3;
+      invocationIndex = methodIndex;
     } else if (tokens[index + 1]?.value === "[" &&
         tokens[index + 2]?.type === "string" &&
         ["call", "apply"].includes(tokens[index + 2].value) &&
         tokens[index + 3]?.value === "]") {
       methodIndex = index + 2;
+      invocationIndex = index + 3;
     } else {
       return undefined;
     }
 
     const method = tokens[methodIndex]?.value;
     if (!["call", "apply"].includes(method)) return undefined;
-    const openIndex = callOpenAfter(methodIndex);
+    const openIndex = callOpenAfter(invocationIndex);
     if (openIndex < 0) return undefined;
     return { openIndex, mode: method };
   }
