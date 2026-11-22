@@ -669,7 +669,7 @@ test("checks inline JavaScript module imports against the published origin", asy
 
 
 test("ignores module-like text inside JavaScript regular expression literals", () => {
-  const source = String.raw`const matcher = /import\\("https:\\/\\/fake\\.example\\/x\\.js"\\)/;`;
+  const source = 'const matcher = /import\\("https:\\/\\/fake\\.example\\/x\\.js"\\)/;';
   assert.deepEqual(extractJavaScriptDependencies(source), { modules: [], resources: [] });
 });
 
