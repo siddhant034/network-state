@@ -4,6 +4,7 @@ import { extractInlineJavaScript, extractJavaScriptDependencies } from "./javasc
 const HTML_LIMIT = 1024 * 1024;
 const ASSET_LIMIT = 10 * 1024 * 1024;
 const MAX_ASSETS = 20;
+const MODULE_TOTAL_LIMIT = 20 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 
 export function extractAssets(html, pageUrl) {
@@ -589,7 +590,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
       const bytes = await readBounded(dependencyResponse, ASSET_LIMIT, "Published JavaScript module " + dependencyUrl.pathname);
       if (bytes.byteLength === 0) throw new Error("Published JavaScript module is empty: " + dependencyUrl.pathname);
       totalModuleBytes += bytes.byteLength;
-      if (totalModuleBytes > 20 * ASSET_LIMIT) throw new Error("Published JavaScript module total exceeds 20 MiB");
+      if (totalModuleBytes > MODULE_TOTAL_LIMIT) throw new Error("Published JavaScript module total exceeds 20 MiB");
       visitedModules.add(normalizeStylesheetUrl(dependencyUrl.href));
       await inspectJavaScript(new TextDecoder().decode(bytes), dependencyUrl.href, depth + 1);
     }
@@ -637,7 +638,7 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
         visitedModules.add(moduleHref);
         moduleCount++;
         totalModuleBytes += bytes.byteLength;
-        if (moduleCount > 40 || totalModuleBytes > 20 * ASSET_LIMIT) {
+        if (moduleCount > 40 || totalModuleBytes > MODULE_TOTAL_LIMIT) {
           throw new Error("Published JavaScript module budget exceeded");
         }
         await inspectJavaScript(new TextDecoder().decode(bytes), moduleHref);
