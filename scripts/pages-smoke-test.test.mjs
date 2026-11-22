@@ -598,7 +598,7 @@ test("ignores JavaScript import-like strings and comments", () => {
   const source = String.raw`const text = "import('https://fake.example/x.js')";
     // import "https://comment.example/x.js";
     /* export * from "https://block.example/x.js"; */
-    const template = \`plain text\`;`;
+    const template = "plain text";`;
   assert.deepEqual(extractJavaScriptDependencies(source), { modules: [], resources: [] });
 });
 
