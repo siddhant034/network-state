@@ -297,8 +297,8 @@ export function extractJavaScriptNetworkUrls(source) {
 
 export function extractInlineEventHandlers(html) {
   const handlers = [];
-  const tagPattern = /<[a-z][a-z0-9:-]*\\b([^>]*)>/gi;
-  const attributePattern = /(?:^|\\s)on[a-z][a-z0-9:_-]*\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi;
+  const tagPattern = /<[a-z][a-z0-9:-]*\b([^>]*)>/gi;
+  const attributePattern = /(?:^|\s)on[a-z][a-z0-9:_-]*\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
   for (const tag of html.matchAll(tagPattern)) {
     for (const attribute of tag[1].matchAll(attributePattern)) {
       handlers.push(attribute[1] ?? attribute[2] ?? attribute[3] ?? "");
