@@ -209,7 +209,11 @@ export function extractJavaScriptDependencies(source) {
 export function extractInlineJavaScript(html) {
   const scripts = [];
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
-    if (getAttribute(match[1], "src") === undefined) scripts.push(match[2]);
+    if (getAttribute(match[1], "src") !== undefined) continue;
+    const type = (getAttribute(match[1], "type") ?? "").trim().toLowerCase();
+    if (type === "" || type === "module" || /^(?:text|application)\/(?:javascript|ecmascript)(?:\s*;|$)/.test(type)) {
+      scripts.push(match[2]);
+    }
   }
   return scripts;
 }
