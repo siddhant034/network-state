@@ -403,6 +403,62 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     if (value !== undefined) urls.push(value);
   }
 
+  function invocationAfter(index) {
+    const direct = callOpenAfter(index);
+    if (direct >= 0) return { openIndex: direct, mode: "direct" };
+
+    let methodIndex;
+    if (tokens[index + 1]?.value === "." &&
+        tokens[index + 2]?.type === "identifier") {
+      methodIndex = index + 2;
+    } else if (tokens[index + 1]?.value === "?" &&
+        tokens[index + 2]?.value === "." &&
+        tokens[index + 3]?.type === "identifier") {
+      methodIndex = index + 3;
+    } else if (tokens[index + 1]?.value === "[" &&
+        tokens[index + 2]?.type === "string" &&
+        ["call", "apply"].includes(tokens[index + 2].value) &&
+        tokens[index + 3]?.value === "]") {
+      methodIndex = index + 2;
+    } else {
+      return undefined;
+    }
+
+    const method = tokens[methodIndex]?.value;
+    if (!["call", "apply"].includes(method)) return undefined;
+    const openIndex = callOpenAfter(methodIndex);
+    if (openIndex < 0) return undefined;
+    return { openIndex, mode: method };
+  }
+
+  function auditInvocation(invocation) {
+    if (!invocation) return;
+    const { openIndex, mode } = invocation;
+    if (mode === "direct") {
+      auditCall(openIndex);
+      return;
+    }
+
+    // Function.prototype.call supplies thisArg first and the fetch URL second.
+    if (mode === "call") {
+      if (tokens[openIndex + 2]?.value !== ",") return;
+      const value = literalUrl(tokens[openIndex + 3]);
+      if (value !== undefined) urls.push(value);
+      return;
+    }
+
+    // Function.prototype.apply receives an argument array. Only a literal
+    // first element is statically knowable; reject dynamic arrays rather than
+    // silently allowing an opaque request URL through the published-site gate.
+    if (tokens[openIndex + 2]?.value !== "," ||
+        tokens[openIndex + 3]?.value !== "[" ||
+        !["string", "template"].includes(tokens[openIndex + 4]?.type)) {
+      throw new Error("Cannot audit dynamic network API apply arguments");
+    }
+    const value = literalUrl(tokens[openIndex + 4]);
+    if (value !== undefined) urls.push(value);
+  }
+
   // Track simple, statically initialized aliases of network APIs. This catches
   // common refactors such as const request = fetch; request(url), while keeping
   // unrelated object methods out of the network audit.
@@ -578,10 +634,10 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     // literal computed property. Optional calls preserve the same static first
     // argument and must not bypass the origin check.
     if (token.type === "identifier" && token.value === "fetch") {
-      auditCall(callOpenAfter(index));
+      auditInvocation(invocationAfter(index));
     } else if (token.type === "string" && token.value === "fetch" &&
         tokens[index - 1]?.value === "[" && tokens[index + 1]?.value === "]") {
-      auditCall(callOpenAfter(index + 1));
+      auditInvocation(invocationAfter(index + 1));
     }
 
     if (token.type === "identifier" && token.value === "new" &&
@@ -611,11 +667,12 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
 
     const aliasApi = token.type === "identifier" ? functionAliases.get(token.value) : undefined;
     if (aliasApi) {
-      const openIndex = callOpenAfter(index);
+      const invocation = invocationAfter(index);
+      const openIndex = invocation?.openIndex ?? -1;
       if (aliasApi === "fetch" && boundFetchUrls.has(token.value)) {
         urls.push(boundFetchUrls.get(token.value));
       } else if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
-        auditCall(openIndex);
+        auditInvocation(invocation);
       } else if (aliasApi === "open" && openIndex >= 0 &&
           tokens[openIndex + 1]?.type === "string" &&
           /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[openIndex + 1].value) &&
