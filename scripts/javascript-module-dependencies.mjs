@@ -241,7 +241,7 @@ export function extractJavaScriptDependencies(source) {
 function skipJavaScriptQuoted(source, position, quote) {
   let cursor = position + 1;
   while (cursor < source.length) {
-    if (source[cursor] === "\\\\") cursor += 2;
+    if (source[cursor] === "\\") cursor += 2;
     else if (source[cursor] === quote) return cursor + 1;
     else cursor++;
   }
@@ -250,7 +250,7 @@ function skipJavaScriptQuoted(source, position, quote) {
 
 function canStartTemplateRegex(source, position) {
   let cursor = position - 1;
-  while (cursor >= 0 && /\\s/.test(source[cursor])) cursor--;
+  while (cursor >= 0 && /\s/.test(source[cursor])) cursor--;
   const previous = source[cursor] ?? "";
   if ("([{,:;=!?&|+-*%^~<>".includes(previous)) return true;
   const word = source.slice(0, cursor + 1).match(/[a-z_$][a-z0-9_$]*$/i)?.[0];
@@ -261,14 +261,14 @@ function skipJavaScriptRegex(source, position) {
   let cursor = position + 1;
   let inClass = false;
   while (cursor < source.length) {
-    if (source[cursor] === "\\\\") cursor += 2;
+    if (source[cursor] === "\\") cursor += 2;
     else if (source[cursor] === "[" && !inClass) { inClass = true; cursor++; }
     else if (source[cursor] === "]" && inClass) { inClass = false; cursor++; }
     else if (source[cursor] === "/" && !inClass) {
       cursor++;
       while (/[a-z]/i.test(source[cursor] ?? "")) cursor++;
       return cursor;
-    } else if (/[\\r\\n]/.test(source[cursor])) break;
+    } else if (/[\r\n]/.test(source[cursor])) break;
     else cursor++;
   }
   throw new Error("Unterminated JavaScript regular expression in template expression");
@@ -283,14 +283,12 @@ function findTemplateExpressionEnd(source, position) {
       cursor = skipJavaScriptQuoted(source, cursor, character);
       continue;
     }
-    if (character === "`") {
-      // A nested template is valid JavaScript, but this lightweight verifier
-      // cannot safely audit its nested expression grammar yet.
+    if (character.charCodeAt(0) === 96) {
       throw new Error("Cannot audit nested template inside JavaScript template expression");
     }
     if (character === "/" && source[cursor + 1] === "/") {
       cursor += 2;
-      while (cursor < source.length && !/[\\r\\n]/.test(source[cursor])) cursor++;
+      while (cursor < source.length && !/[\r\n]/.test(source[cursor])) cursor++;
       continue;
     }
     if (character === "/" && source[cursor + 1] === "*") {
@@ -304,21 +302,25 @@ function findTemplateExpressionEnd(source, position) {
       continue;
     }
     if (character === "{") depth++;
-    else if (character === "}" && --depth === 0) return cursor;
+    else if (character === "}") {
+      depth--;
+      if (depth === 0) return cursor;
+    }
     cursor++;
   }
   throw new Error("Unterminated JavaScript template expression");
 }
 
 function extractTemplateExpressions(raw) {
-  if (!raw.startsWith("`") || !raw.endsWith("`")) {
+  const tick = String.fromCharCode(96);
+  if (!raw.startsWith(tick) || !raw.endsWith(tick)) {
     throw new Error("Cannot audit malformed JavaScript template");
   }
   const expressions = [];
   const end = raw.length - 1;
   let cursor = 1;
   while (cursor < end) {
-    if (raw[cursor] === "\\\\") {
+    if (raw[cursor] === "\\") {
       cursor += 2;
       continue;
     }
