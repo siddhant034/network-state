@@ -7,8 +7,29 @@ const TIMEOUT_MS = 15_000;
 
 export function extractAssets(html, pageUrl) {
   const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
-  return [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/gi)]
-    .map((match) => new URL(match[1], documentBaseUrl));
+  const assets = new Map();
+  const tagPattern = /<(script|link)\\b([^>]*)>/gi;
+
+  for (const match of html.matchAll(tagPattern)) {
+    const tag = match[1].toLowerCase();
+    const attributes = match[2];
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
+    const as = getAttribute(attributes, "as")?.toLowerCase();
+    const isAssetLink = tag === "link" && (
+      rel.includes("stylesheet") ||
+      rel.includes("modulepreload") ||
+      (rel.includes("preload") && (as === "script" || as === "style"))
+    );
+    if (tag === "link" && !isAssetLink) continue;
+
+    const value = getAttribute(attributes, tag === "script" ? "src" : "href");
+    if (!value) continue;
+    const asset = new URL(decodeHtmlAttribute(value), documentBaseUrl);
+    if (!/\\.(?:js|css)$/i.test(asset.pathname)) continue;
+    assets.set(asset.href, asset);
+  }
+
+  return [...assets.values()];
 }
 
 export function parseSrcset(srcset) {
@@ -116,7 +137,7 @@ export function extractResourceUrls(html, pageUrl) {
       const srcset = getAttribute(attributes, tag === "link" ? "imagesrcset" : "srcset");
       if (srcset) {
         for (const value of parseSrcset(decodeHtmlAttribute(srcset))) {
-          if (!value.startsWith("data:")) resources.push(new URL(value, pageUrl));
+          if (!value.startsWith("data:")) resources.push(new URL(value, documentBaseUrl));
         }
       }
     }
