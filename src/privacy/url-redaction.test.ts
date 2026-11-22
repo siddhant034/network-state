@@ -15,7 +15,10 @@ describe("redactSensitivePath", () => {
     ["/customers/%2B1%20(415)%20555-2671/profile", "/customers/[redacted]/profile"],
     ["/contacts/555-0101/details", "/contacts/[redacted]/details"],
     ["/users/123456/profile", "/users/123456/profile"],
-    ["/orders/20261123/details", "/orders/20261123/details"]
+    ["/orders/20261123/details", "/orders/20261123/details"],
+    ["/accounts/550e8400-e29b-41d4-a716-446655440000/settings", "/accounts/[redacted]/settings"],
+    ["/devices/%7B550E8400-E29B-41D4-A716-446655440000%7D/status", "/devices/[redacted]/status"],
+    ["/versions/1.2.3/release", "/versions/1.2.3/release"]
   ])("redacts %s", (input, expected) => {
     expect(redactSensitivePath(input)).toBe(expected);
   });
