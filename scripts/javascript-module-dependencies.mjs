@@ -299,7 +299,7 @@ const HTML_CHARACTER_REFERENCES = new Map([
   ["amp", "&"], ["quot", '"'], ["apos", "'"], ["lt", "<"], ["gt", ">"],
   ["colon", ":"], ["sol", "/"], ["quest", "?"], ["num", "#"], ["percnt", "%"],
   ["period", "."], ["equals", "="], ["lpar", "("], ["rpar", ")"],
-  ["Tab", "\\t"], ["NewLine", "\\n"],
+  ["Tab", "\t"], ["NewLine", "\n"],
 ]);
 
 export function decodeHtmlCharacterReferences(value) {
@@ -315,7 +315,7 @@ export function decodeHtmlCharacterReferences(value) {
     const digits = reference.slice(hexadecimal ? 2 : 1);
     const codePoint = Number.parseInt(digits, hexadecimal ? 16 : 10);
     if (!Number.isInteger(codePoint) || codePoint === 0 || codePoint > 0x10ffff ||
-        (codePoint >= 0xd800 && codePoint <= 0xdfff)) return "\\uFFFD";
+        (codePoint >= 0xd800 && codePoint <= 0xdfff)) return "\uFFFD";
     return String.fromCodePoint(codePoint);
   });
 }
