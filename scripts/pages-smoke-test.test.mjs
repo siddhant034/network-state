@@ -1,4 +1,5 @@
 import test from "node:test";
+import { extractInlineJavaScript, extractJavaScriptDependencies } from "./javascript-module-dependencies.mjs";
 import assert from "node:assert/strict";
 import { extractAssets, extractCssImports, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
@@ -578,3 +579,90 @@ test("rejects credential-bearing same-origin resource URLs before fetching", asy
   assert.equal(requests.some((url) => url.includes("user:secret@")), false);
 });
 
+
+
+test("extracts static, re-exported, and literal dynamic JavaScript module dependencies", () => {
+  const source = String.raw`import "./side-effect.js";
+    import { value } from "./named.js";
+    export { value as other } from "./re-export.js";
+    const lazy = () => import("./lazy.js");
+    const asset = new URL("./image.svg", import.meta.url);
+    const meta = import.meta.url;`;
+  assert.deepEqual(extractJavaScriptDependencies(source), {
+    modules: ["./side-effect.js", "./named.js", "./re-export.js", "./lazy.js"],
+    resources: ["./image.svg"],
+  });
+});
+
+test("ignores JavaScript import-like strings and comments", () => {
+  const source = String.raw`const text = "import('https://fake.example/x.js')";
+    // import "https://comment.example/x.js";
+    /* export * from "https://block.example/x.js"; */
+    const template = \`plain text\`;`;
+  assert.deepEqual(extractJavaScriptDependencies(source), { modules: [], resources: [] });
+});
+
+test("fails closed for non-literal dynamic imports and dynamic import options", () => {
+  assert.throws(
+    () => extractJavaScriptDependencies("import(moduleName)"),
+    /non-literal JavaScript dynamic import/,
+  );
+  assert.throws(
+    () => extractJavaScriptDependencies('import("./chunk.js", { with: { type: "javascript" } })'),
+    /dynamic import options/,
+  );
+});
+
+test("extracts inline scripts without external src attributes", () => {
+  assert.deepEqual(
+    extractInlineJavaScript('<script src="/main.js"></script><script type="module">import "./chunk.js"</script>'),
+    ['import "./chunk.js"'],
+  );
+});
+
+test("rejects a third-party module hidden in a recursively imported JavaScript chunk", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") return response('import("./chunks/child.js");', href, 200, "text/javascript");
+    if (href === origin + "/assets/chunks/child.js") return response('import("https://tracker.example/collect.js");', href, 200, "text/javascript");
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript module redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/collect.js"), false);
+});
+
+test("recursively verifies same-origin JavaScript modules and avoids cycles", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") return response('import("./chunks/child.js");', href, 200, "text/javascript");
+    if (href === origin + "/assets/chunks/child.js") {
+      requested.push(href);
+      return response('import("../app.js");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  const result = await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.equal(result.assetCount, 2);
+  assert.deepEqual(requested, [origin + "/assets/chunks/child.js"]);
+});
+
+test("checks inline JavaScript module imports against the published origin", async () => {
+  const unsafeHtml = html.replace(
+    "</body>",
+    '<script type="module">import "https://cdn.example/inline.js";</script></body>',
+  );
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => response(unsafeHtml, String(url))),
+    /Published JavaScript module redirected to an unexpected origin/,
+  );
+});
