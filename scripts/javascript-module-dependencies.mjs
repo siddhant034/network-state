@@ -295,6 +295,31 @@ export function extractJavaScriptNetworkUrls(source) {
   return [...new Set(urls)];
 }
 
+const HTML_CHARACTER_REFERENCES = new Map([
+  ["amp", "&"], ["quot", '"'], ["apos", "'"], ["lt", "<"], ["gt", ">"],
+  ["colon", ":"], ["sol", "/"], ["quest", "?"], ["num", "#"], ["percnt", "%"],
+  ["period", "."], ["equals", "="], ["lpar", "("], ["rpar", ")"],
+  ["Tab", "\\t"], ["NewLine", "\\n"],
+]);
+
+export function decodeHtmlCharacterReferences(value) {
+  return value.replace(/&(#(?:x[0-9a-f]{1,8}|[0-9]{1,10})|[a-z][a-z0-9]+);?/gi, (entity, reference) => {
+    if (reference[0] !== "#") {
+      // Decode only explicitly supported named references. Numeric references
+      // cover arbitrary encoded ASCII syntax; unknown names stay untouched.
+      return HTML_CHARACTER_REFERENCES.get(reference) ??
+        HTML_CHARACTER_REFERENCES.get(reference.toLowerCase()) ??
+        entity;
+    }
+    const hexadecimal = reference[1]?.toLowerCase() === "x";
+    const digits = reference.slice(hexadecimal ? 2 : 1);
+    const codePoint = Number.parseInt(digits, hexadecimal ? 16 : 10);
+    if (!Number.isInteger(codePoint) || codePoint === 0 || codePoint > 0x10ffff ||
+        (codePoint >= 0xd800 && codePoint <= 0xdfff)) return "\\uFFFD";
+    return String.fromCodePoint(codePoint);
+  });
+}
+
 export function extractInlineEventHandlers(html) {
   const handlers = [];
   let cursor = 0;
@@ -383,7 +408,7 @@ export function extractInlineEventHandlers(html) {
         }
       }
 
-      if (/^on[a-z][a-z0-9:_-]*$/i.test(attributeName)) handlers.push(value);
+      if (/^on[a-z][a-z0-9:_-]*$/i.test(attributeName)) {\n        handlers.push(decodeHtmlCharacterReferences(value));\n      }
     }
 
     if (!tagClosed) throw new Error("Unterminated HTML tag while scanning event handlers");
