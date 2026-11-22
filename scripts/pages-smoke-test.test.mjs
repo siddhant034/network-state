@@ -177,8 +177,7 @@ test("rejects declared and streamed responses that exceed size budgets", async (
   const oversizedStream = new ReadableStream({
     start(controller) {
       controller.enqueue(new Uint8Array(1024 * 1024));
-      controller.enqueue(new Uint8Array(1));
-      controller.close();
+      controller.enqueue(new Uint8Array(1));      controller.close();
     },
   });
   const streamed = new Response(oversizedStream, {
@@ -357,8 +356,7 @@ test("rejects third-party image-set string candidates in published CSS", async (
 test("fails closed on unterminated CSS url dependencies", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
   assert.throws(
-    () => extractCssResourceUrls(".x{background:url(https://evil.example/image.png", origin + "/assets/app.css"),
-    /Unterminated CSS url\(\) dependency/,
+    () => extractCssResourceUrls(".x{background:url(https://evil.example/image.png", origin + "/assets/app.css"),    /Unterminated CSS url\(\) dependency/,
   );
 });
 
@@ -537,7 +535,6 @@ test("normalizes CSS import fragments to avoid duplicate requests and cycles", a
   await verifyPublishedSite(origin + "/", fetchImpl);
   assert.deepEqual(requested, [origin + "/nested/theme.css"]);
 });
-
 test("marks same-origin redirect destinations visited before scanning imports", async () => {
   const requested = [];
   const fetchImpl = async (url) => {
@@ -717,8 +714,7 @@ test("rejects an off-origin redirect before the verifier follows it", async () =
     if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
     if (href === origin + "/assets/app.js") {
       return response("", href, 302, "text/javascript", { location: "https://tracker.example/remote.js" });
-    }
-    throw new Error("unexpected request: " + href);
+    }    throw new Error("unexpected request: " + href);
   };
   await assert.rejects(
     verifyPublishedSite(origin + "/", fetchImpl),
@@ -863,6 +859,7 @@ test("decodes HTML character references before scanning inline handler JavaScrip
   assert.equal(handler, 'fetch("https://tracker.example/pixel")');
   assert.deepEqual(extractJavaScriptNetworkUrls(handler), ["https://tracker.example/pixel"]);
   assert.equal(decodeHtmlCharacterReferences("&#0; &#xD800; &#x110000;"), "\uFFFD \uFFFD \uFFFD");
+  assert.equal(decodeHtmlCharacterReferences("&#000000000000102; &#x00000000000066;"), "f f");
 });
 
 test("rejects entity-encoded third-party event-handler requests before contacting them", async () => {
@@ -897,8 +894,7 @@ test("event handler scanner skips comments and script/style raw text", () => {
     '<script>const template = \'<img onclick="fetch(https://fake.example)">\';</script>' +
     '<style>.sample{content:"<img onerror=fetch(https://fake.example)>";}</style>' +
     '<button onclick="fetch(\'/safe\')">Safe</button>';
-  assert.deepEqual(extractInlineEventHandlers(document), ["fetch('/safe')"]);
-});
+  assert.deepEqual(extractInlineEventHandlers(document), ["fetch('/safe')"]);});
 
 test("event handler scanner fails closed on unterminated quoted attributes", () => {
   assert.throws(
