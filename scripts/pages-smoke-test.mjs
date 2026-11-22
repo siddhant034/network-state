@@ -92,12 +92,10 @@ export function scanHtmlTags(html) {
 export function extractAssets(html, pageUrl) {
   const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
   const assets = new Map();
-  const tagPattern = /<(script|link)\b([^>]*)>/gi;
 
-  for (const match of html.matchAll(tagPattern)) {
-    const tag = match[1].toLowerCase();
-    const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
+  for (const { tag, attributes, closing } of scanHtmlTags(html)) {
+    if (closing || (tag !== "script" && tag !== "link")) continue;
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
     const as = getAttribute(attributes, "as")?.toLowerCase();
     const isAssetLink = tag === "link" && (
       rel.includes("stylesheet") ||
@@ -109,7 +107,7 @@ export function extractAssets(html, pageUrl) {
     const value = getAttribute(attributes, tag === "script" ? "src" : "href");
     if (!value) continue;
     const asset = new URL(decodeHtmlAttribute(value), documentBaseUrl);
-    if (!/\.(?:js|css)$/i.test(asset.pathname)) continue;
+    if (!/\\.(?:js|css)$/i.test(asset.pathname)) continue;
     assets.set(asset.href, asset);
   }
 
@@ -148,28 +146,26 @@ function getAttribute(attributes, name) {
 }
 
 export function getDocumentBaseUrl(html, pageUrl) {
-  const head = html.match(/<head\b[^>]*>([\s\S]*?)(?:<\/head\s*>|$)/i)?.[1] ?? "";
-  for (const match of head.matchAll(/<base\b([^>]*)>/gi)) {
-    const href = getAttribute(match[1], "href");
+  let inHead = false;
+  for (const { tag, attributes, closing } of scanHtmlTags(html)) {
+    if (tag === "head") {
+      inHead = !closing;
+      if (closing) break;
+      continue;
+    }
+    if (!inHead || closing || tag !== "base") continue;
+    const href = getAttribute(attributes, "href");
     if (href !== undefined) return new URL(decodeHtmlAttribute(href), pageUrl);
   }
   return new URL(pageUrl);
 }
 
-function decodeHtmlAttribute(value) {
-  // HTML decodes character references in URL-bearing attributes before the
-  // browser resolves them. Reuse the event-handler decoder so entity-encoded
-  // schemes and host separators cannot evade the origin checks.
-  return decodeHtmlCharacterReferences(value);
-}
 export function extractInlineCss(html) {
   const styles = [];
-  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
-    styles.push(match[1]);
-  }
-  const tagPattern = /<([a-z][a-z0-9:-]*)\b([^>]*)>/gi;
-  for (const match of html.matchAll(tagPattern)) {
-    const style = getAttribute(match[2], "style");
+  for (const { tag, attributes, closing, content } of scanHtmlTags(html)) {
+    if (closing) continue;
+    if (tag === "style") styles.push(content ?? "");
+    const style = getAttribute(attributes, "style");
     if (style) styles.push(decodeHtmlAttribute(style));
   }
   return styles;
@@ -178,11 +174,10 @@ export function extractInlineCss(html) {
 export function extractResourceUrls(html, pageUrl) {
   const resources = [];
   const documentBaseUrl = getDocumentBaseUrl(html, pageUrl);
-  const tagPattern = /<(script|img|source|iframe|video|audio|track|link|object|embed|input|image|use|feimage)\b([^>]*)>/gi;
-  for (const match of html.matchAll(tagPattern)) {
-    const tag = match[1].toLowerCase();
-    const attributes = match[2];
-    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\s+/) ?? [];
+  const resourceTags = new Set(["script", "img", "source", "iframe", "video", "audio", "track", "link", "object", "embed", "input", "image", "use", "feimage"]);
+  for (const { tag, attributes, closing } of scanHtmlTags(html)) {
+    if (closing || !resourceTags.has(tag)) continue;
+    const rel = getAttribute(attributes, "rel")?.toLowerCase().split(/\\s+/) ?? [];
     const type = getAttribute(attributes, "type")?.toLowerCase();
     const isResourceLink = tag === "link" && rel.some((value) =>
       ["stylesheet", "preload", "modulepreload", "icon", "manifest", "preconnect", "dns-prefetch"].includes(value),
@@ -216,6 +211,7 @@ export function extractResourceUrls(html, pageUrl) {
   }
   return resources;
 }
+
 export function decodeCssEscapes(value) {
   return value
     .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?/gi, (_, hex) => {
