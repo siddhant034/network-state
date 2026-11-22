@@ -341,6 +341,27 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   const tokens = tokenize(source);
   const urls = [];
 
+  // Dynamic code generation is opaque to this static privacy audit. Reject
+  // executable references to eval/Function (including global computed access)
+  // instead of allowing generated code to hide an outbound request.
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.type === "identifier" && ["eval", "Function"].includes(token.value)) {
+      throw new Error("Cannot audit dynamic JavaScript code execution");
+    }
+    if (token.type === "string" && ["eval", "Function"].includes(token.value) &&
+        tokens[index - 1]?.value === "[" && tokens[index + 1]?.value === "]" &&
+        ["window", "globalThis", "self"].includes(tokens[index - 2]?.value)) {
+      throw new Error("Cannot audit dynamic JavaScript code execution");
+    }
+    if (token.type === "identifier" && ["setTimeout", "setInterval"].includes(token.value)) {
+      const open = callOpenAfter(index);
+      if (open >= 0 && ["string", "template"].includes(tokens[open + 1]?.type)) {
+        throw new Error("Cannot audit string-based JavaScript timer code");
+      }
+    }
+  }
+
   function literalUrl(token) {
     if (token?.type === "string") return token.value;
     if (token?.type !== "template") return undefined;
