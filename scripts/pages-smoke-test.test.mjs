@@ -791,9 +791,9 @@ test("extracts literal JavaScript request URLs from supported network APIs", () 
 
 test("extracts inline event handler code for privacy scanning", () => {
   const handlers = extractInlineEventHandlers(
-    '<button onclick="fetch(\\'https://tracker.example/click\\')">Open</button>' +
-    '<img onerror = "navigator.sendBeacon(\\'/pixel\\', data)">' +
-    '<a href="/docs">Documentation</a>',
+    `<button onclick="fetch('https://tracker.example/click')">Open</button>` +
+    `<img onerror = "navigator.sendBeacon('/pixel', data)">` +
+    `<a href="/docs">Documentation</a>`,
   );
   assert.deepEqual(handlers, [
     "fetch('https://tracker.example/click')",
@@ -823,7 +823,7 @@ test("rejects a third-party literal fetch in a same-origin JavaScript asset befo
 test("rejects third-party requests in inline event handlers before any outbound request", async () => {
   const unsafeHtml = html.replace(
     "</body>",
-    '<img onerror="fetch(\\'https://tracker.example/error\\')"></body>',
+    `<img onerror="fetch('https://tracker.example/error')"></body>`,
   );
   const requests = [];
   await assert.rejects(
