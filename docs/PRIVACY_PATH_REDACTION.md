@@ -5,7 +5,8 @@ Network State removes query strings, fragments, and embedded credentials from di
 - Values following common credential and identity labels (for example, `token`, `session`, `reset`, `email`, and `phone`).
 - JWT-shaped path segments.
 - Email-address-shaped path segments, including percent-encoded `@` and other encoded characters.
+- Phone-number-shaped segments containing 7–15 digits, including common international prefixes and separators.
 
-Email-shaped values are redacted even when the route does not use an explicit `/email/:value` pattern, because account identifiers are often embedded directly in resource paths.
+Email and phone-shaped values are redacted even when the route does not use an explicit sensitive label, because account identifiers and contact details are sometimes embedded directly in resource paths. Short numeric identifiers are retained to avoid hiding ordinary small resource IDs.
 
-This is a best-effort safeguard, not a guarantee of anonymization. Arbitrary user IDs, phone numbers without a recognized label, organization names, and other application-specific identifiers can still appear in a path. Path inclusion remains opt-in; keep it disabled when paths are not needed for diagnosis.
+This is a best-effort safeguard, not a guarantee of anonymization. Arbitrary user IDs, application-specific identifiers, and phone numbers in unrecognized formats can still appear in a path. Some numeric identifiers may also resemble phone numbers and be redacted. Path inclusion remains opt-in; keep it disabled when paths are not needed for diagnosis.
