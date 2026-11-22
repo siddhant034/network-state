@@ -479,11 +479,28 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   const base = new URL(configuredUrl);
   if (base.protocol !== "https:") throw new Error("Expected an HTTPS Pages URL");
 
-  const request = (url) => fetchImpl(url, {
-    redirect: "follow",
-    cache: "no-store",
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  async function request(url) {
+    let current = new URL(url);
+    for (let redirects = 0; redirects <= 5; redirects++) {
+      const response = await fetchImpl(current, {
+        redirect: "manual",
+        cache: "no-store",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (response.url) assertSameOrigin(response.url, base.origin, "Published request");
+      if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+      if (redirects === 5) throw new Error("Published request exceeded five redirects");
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Published request redirect is missing Location");
+      const destination = new URL(location, current);
+      assertSameOrigin(destination.href, base.origin, "Published request redirect");
+      if (destination.protocol !== "https:") {
+        throw new Error("Published request redirect uses an unexpected protocol: " + destination.protocol);
+      }
+      current = destination;
+    }
+    throw new Error("Published request exceeded five redirects");
+  }
 
   const pageResponse = await request(base);
   if (!pageResponse.ok) throw new Error(`Published page returned HTTP ${pageResponse.status}`);
