@@ -177,8 +177,7 @@ test("rejects declared and streamed responses that exceed size budgets", async (
   const oversizedStream = new ReadableStream({
     start(controller) {
       controller.enqueue(new Uint8Array(1024 * 1024));
-      controller.enqueue(new Uint8Array(1));      controller.close();
-    },
+      controller.enqueue(new Uint8Array(1));      controller.close();    },
   });
   const streamed = new Response(oversizedStream, {
     headers: { "content-type": "text/html" },
@@ -357,8 +356,7 @@ test("fails closed on unterminated CSS url dependencies", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
   assert.throws(
     () => extractCssResourceUrls(".x{background:url(https://evil.example/image.png", origin + "/assets/app.css"),    /Unterminated CSS url\(\) dependency/,
-  );
-});
+  );});
 
 test("fails closed on unterminated quoted CSS url dependencies", async () => {
   const { extractCssResourceUrls } = await import("./pages-smoke-test.mjs");
@@ -537,8 +535,7 @@ test("normalizes CSS import fragments to avoid duplicate requests and cycles", a
 });
 test("marks same-origin redirect destinations visited before scanning imports", async () => {
   const requested = [];
-  const fetchImpl = async (url) => {
-    const href = String(url);
+  const fetchImpl = async (url) => {    const href = String(url);
     if (href === origin + "/") return response(html, href);
     if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
     if (href === origin + "/assets/app.css") return response('@import "/alias.css";', href, 200, "text/css");
@@ -717,8 +714,7 @@ test("rejects an off-origin redirect before the verifier follows it", async () =
     }    throw new Error("unexpected request: " + href);
   };
   await assert.rejects(
-    verifyPublishedSite(origin + "/", fetchImpl),
-    /Published request redirect redirected to an unexpected origin/,
+    verifyPublishedSite(origin + "/", fetchImpl),    /Published request redirect redirected to an unexpected origin/,
   );
   assert.equal(requests.includes("https://tracker.example/remote.js"), false);
 });
@@ -865,7 +861,7 @@ test("decodes HTML character references before scanning inline handler JavaScrip
 test("rejects entity-encoded third-party event-handler requests before contacting them", async () => {
   const unsafeHtml = html.replace(
     "</body>",
-    '<img onerror="&#x66;etch(&#x22;https&colon;&sol;&sol;tracker.example&#x2f;error&#x22;)"></body>',
+    '<img onerror="&#000000000000102;etch(&#x22;https&colon;&sol;&sol;tracker.example&#x2f;error&#x22;)"></body>',
   );
   const requests = [];
   await assert.rejects(
@@ -897,8 +893,7 @@ test("event handler scanner skips comments and script/style raw text", () => {
   assert.deepEqual(extractInlineEventHandlers(document), ["fetch('/safe')"]);});
 
 test("event handler scanner fails closed on unterminated quoted attributes", () => {
-  assert.throws(
-    () => extractInlineEventHandlers('<img onerror="fetch(\'https://tracker.example/\')>'),
+  assert.throws(    () => extractInlineEventHandlers('<img onerror="fetch(\'https://tracker.example/\')>'),
     /Unterminated quoted HTML attribute/,
   );
 });
