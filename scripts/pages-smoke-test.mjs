@@ -25,7 +25,7 @@ export function extractAssets(html, pageUrl) {
     const value = getAttribute(attributes, tag === "script" ? "src" : "href");
     if (!value) continue;
     const asset = new URL(decodeHtmlAttribute(value), documentBaseUrl);
-    if (!/\.(?:js|css)$/i.test(asset.pathname) continue;
+    if (!/\.(?:js|css)$/i.test(asset.pathname)) continue;
     assets.set(asset.href, asset);
   }
 
