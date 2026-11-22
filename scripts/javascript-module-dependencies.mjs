@@ -239,6 +239,74 @@ export function extractJavaScriptDependencies(source) {
   return { modules: [...new Set(modules)], resources: [...new Set(resources)] };
 }
 
+export function extractJavaScriptNetworkUrls(source) {
+  const tokens = tokenize(source);
+  const urls = [];
+
+  function staticUrlArgument(position) {
+    if (tokens[position]?.type === "string") return tokens[position].value;
+    if (tokens[position]?.value === "new" &&
+        tokens[position + 1]?.value === "URL" &&
+        tokens[position + 2]?.value === "(" &&
+        tokens[position + 3]?.type === "string") {
+      return tokens[position + 3].value;
+    }
+    return undefined;
+  }
+
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.type !== "identifier") continue;
+
+    // Literal first arguments to fetch() are requests, whether fetch is global
+    // or accessed through window/globalThis. Dynamic values are intentionally
+    // left alone because the application supports user-entered probe targets.
+    if (token.value === "fetch" && tokens[index + 1]?.value === "(") {
+      const value = staticUrlArgument(index + 2);
+      if (value !== undefined) urls.push(value);
+    }
+
+    if (token.value === "new" &&
+        ["WebSocket", "EventSource"].includes(tokens[index + 1]?.value) &&
+        tokens[index + 2]?.value === "(") {
+      const value = staticUrlArgument(index + 3);
+      if (value !== undefined) urls.push(value);
+    }
+
+    if (token.value === "sendBeacon" && tokens[index - 1]?.value === "." &&
+        tokens[index + 1]?.value === "(") {
+      const value = staticUrlArgument(index + 2);
+      if (value !== undefined) urls.push(value);
+    }
+
+    // XMLHttpRequest.open(method, url[, async]) has a stable two-argument
+    // prefix. Restrict this heuristic to literal HTTP method names to avoid
+    // treating unrelated object.open() calls as network requests.
+    if (token.value === "open" && tokens[index - 1]?.value === "." &&
+        tokens[index + 1]?.value === "(" &&
+        tokens[index + 2]?.type === "string" &&
+        /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[index + 2].value) &&
+        tokens[index + 3]?.value === ",") {
+      const value = staticUrlArgument(index + 4);
+      if (value !== undefined) urls.push(value);
+    }
+  }
+
+  return [...new Set(urls)];
+}
+
+export function extractInlineEventHandlers(html) {
+  const handlers = [];
+  const tagPattern = /<[a-z][a-z0-9:-]*\\b([^>]*)>/gi;
+  const attributePattern = /(?:^|\\s)on[a-z][a-z0-9:_-]*\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi;
+  for (const tag of html.matchAll(tagPattern)) {
+    for (const attribute of tag[1].matchAll(attributePattern)) {
+      handlers.push(attribute[1] ?? attribute[2] ?? attribute[3] ?? "");
+    }
+  }
+  return handlers;
+}
+
 export function extractInlineJavaScript(html) {
   const scripts = [];
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
