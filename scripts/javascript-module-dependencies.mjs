@@ -465,7 +465,7 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         tokens[bindDot + 2]?.value === "(") {
       const bindOpen = bindDot + 2;
       const firstBoundArgument = bindOpen + 3; // skip thisArg and comma
-      const boundUrl = tokens[bindOpen + 2]?.value === "," 
+      const boundUrl = tokens[bindOpen + 2]?.value === ","
         ? literalUrl(tokens[firstBoundArgument])
         : undefined;
       return {
