@@ -825,7 +825,7 @@ test("audits network calls inside template expressions without scanning template
   );
   assert.deepEqual(
     extractJavaScriptNetworkUrls('fetch(`/safe/${fetch("https://tracker.example/nested") }`);'),
-    ["https://tracker.example/nested"],
+    ["/safe/", "https://tracker.example/nested"],
   );
   assert.deepEqual(
     extractJavaScriptNetworkUrls('const text = `not code: fetch("https://ignored.example")`;'),
