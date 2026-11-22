@@ -1311,3 +1311,47 @@ test("rejects dynamic-code third-party requests before contacting the host", asy
   );
   assert.equal(requests.some((url) => url.includes("tracker.example")), false);
 });
+
+
+test("fails closed on computed and aliased string timer callbacks", () => {
+  const sources = [
+    'window["setTimeout"]("fetch(\\'https://tracker.example/computed-timer\\')',
+    'globalThis["setInterval"]?.("fetch(\\'https://tracker.example/computed-interval\\')', 
+    'const schedule = setTimeout; schedule("fetch(\\'https://tracker.example/alias-timer\\')")',
+    'const schedule = window["setTimeout"]; schedule("fetch(\\'https://tracker.example/computed-alias\\')")',
+    'const first = setTimeout; const second = first; second("fetch(\\'https://tracker.example/chain\\')")'
+  ];
+  for (const source of sources) {
+    assert.throws(
+      () => extractJavaScriptNetworkUrls(source),
+      /Cannot audit string-based JavaScript timer code/,
+      source,
+    );
+  }
+});
+
+test("allows function callbacks through timer aliases", () => {
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls("const schedule = setTimeout; schedule(() => {}, 0)"),
+    [],
+  );
+});
+
+test("rejects computed string-timer code before contacting its generated request host", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('window["setTimeout"]("fetch(\\\'https://tracker.example/generated\\\')");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Cannot audit string-based JavaScript timer code/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
