@@ -934,3 +934,40 @@ test("event handler scanner fails closed on unterminated quoted attributes", () 
     /Unterminated quoted HTML attribute/,
   );
 });
+
+test("resource discovery respects quoted greater-than signs and ignores markup in comments and raw text", () => {
+  const document = '<!-- <script src="https://comment.example/hidden.js"></script> -->' +
+    '<head><base href="/assets/"></head>' +
+    '<script>const markup = \'<img src="https://script.example/hidden.png">\';</script>' +
+    '<style>.x::after{content:\'<img src="https://style.example/hidden.png">\';}</style>' +
+    '<script data-note="a > b" src="app.js"></script>' +
+    '<img data-note="x > y" src="status.png">';
+  assert.deepEqual(
+    extractAssets(document, new URL(origin + "/")).map((asset) => asset.href),
+    [origin + "/assets/app.js"],
+  );
+  assert.deepEqual(
+    extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
+    [origin + "/assets/status.png"],
+  );
+});
+
+test("inline CSS extraction preserves style contents and parses style attributes containing greater-than signs", () => {
+  const document = '<style>.hero{background:url("/hero.png");content:">"}</style>' +
+    '<div data-note="a > b" style="background:url(\'/card.png\');content:\' > \'"></div>';
+  assert.deepEqual(
+    extractInlineCss(document),
+    ['.hero{background:url("/hero.png");content:">"}', "background:url('/card.png');content:' > '"],
+  );
+});
+
+test("HTML resource scanner fails closed on malformed quoted attributes and raw text", () => {
+  assert.throws(
+    () => extractResourceUrls('<img src="https://unsafe.example/image.png>', new URL(origin + "/")),
+    /Unterminated HTML tag or quoted attribute/,
+  );
+  assert.throws(
+    () => extractAssets('<script src="/assets/app.js">missing close', new URL(origin + "/")),
+    /Unterminated HTML script element/,
+  );
+});
