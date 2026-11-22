@@ -11,7 +11,11 @@ describe("redactSensitivePath", () => {
     ["/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signaturevalue1234567890", "/[redacted]"],
     ["/users/alex@example.com/profile", "/users/[redacted]/profile"],
     ["/users/alex%2Balerts%40example.com/profile", "/users/[redacted]/profile"],
-    ["/contact/not-an-email/profile", "/contact/not-an-email/profile"]
+    ["/contact/not-an-email/profile", "/contact/not-an-email/profile"],
+    ["/customers/%2B1%20(415)%20555-2671/profile", "/customers/[redacted]/profile"],
+    ["/contacts/555-0101/details", "/contacts/[redacted]/details"],
+    ["/users/123456/profile", "/users/123456/profile"],
+    ["/orders/20261123/details", "/orders/20261123/details"]
   ])("redacts %s", (input, expected) => {
     expect(redactSensitivePath(input)).toBe(expected);
   });
