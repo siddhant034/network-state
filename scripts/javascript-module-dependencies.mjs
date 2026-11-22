@@ -297,13 +297,108 @@ export function extractJavaScriptNetworkUrls(source) {
 
 export function extractInlineEventHandlers(html) {
   const handlers = [];
-  const tagPattern = /<[a-z][a-z0-9:-]*\b([^>]*)>/gi;
-  const attributePattern = /(?:^|\s)on[a-z][a-z0-9:_-]*\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
-  for (const tag of html.matchAll(tagPattern)) {
-    for (const attribute of tag[1].matchAll(attributePattern)) {
-      handlers.push(attribute[1] ?? attribute[2] ?? attribute[3] ?? "");
+  let cursor = 0;
+
+  function skipTagEnd(position) {
+    let quote;
+    while (position < html.length) {
+      const character = html[position++];
+      if (quote) {
+        if (character === quote) quote = undefined;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === ">") {
+        return position;
+      }
+    }
+    throw new Error("Unterminated HTML tag while scanning event handlers");
+  }
+
+  while (cursor < html.length) {
+    const opening = html.indexOf("<", cursor);
+    if (opening < 0) break;
+    cursor = opening;
+
+    if (html.startsWith("<!--", cursor)) {
+      const close = html.indexOf("-->", cursor + 4);
+      if (close < 0) throw new Error("Unterminated HTML comment while scanning event handlers");
+      cursor = close + 3;
+      continue;
+    }
+
+    const next = html[cursor + 1];
+    if (next === "!" || next === "?" || next === "/") {
+      cursor = skipTagEnd(cursor + 2);
+      continue;
+    }
+    if (!/[a-z]/i.test(next ?? "")) {
+      cursor++;
+      continue;
+    }
+
+    cursor += 1;
+    const nameStart = cursor;
+    while (cursor < html.length && /[a-z0-9:-]/i.test(html[cursor])) cursor++;
+    const tagName = html.slice(nameStart, cursor).toLowerCase();
+
+    let tagClosed = false;
+    while (cursor < html.length) {
+      while (cursor < html.length && /\s/.test(html[cursor])) cursor++;
+      if (html[cursor] === ">") {
+        cursor++;
+        tagClosed = true;
+        break;
+      }
+      if (html[cursor] === "/" && html[cursor + 1] === ">") {
+        cursor += 2;
+        tagClosed = true;
+        break;
+      }
+
+      const attributeStart = cursor;
+      while (cursor < html.length && !/[\s=/>]/.test(html[cursor])) cursor++;
+      if (cursor === attributeStart) {
+        cursor++;
+        continue;
+      }
+      const attributeName = html.slice(attributeStart, cursor).toLowerCase();
+      while (cursor < html.length && /\s/.test(html[cursor])) cursor++;
+
+      let value = "";
+      if (html[cursor] === "=") {
+        cursor++;
+        while (cursor < html.length && /\s/.test(html[cursor])) cursor++;
+        const quote = html[cursor] === '"' || html[cursor] === "'" ? html[cursor++] : undefined;
+        const valueStart = cursor;
+        if (quote) {
+          while (cursor < html.length && html[cursor] !== quote) cursor++;
+          if (cursor >= html.length) {
+            throw new Error("Unterminated quoted HTML attribute while scanning event handlers");
+          }
+          value = html.slice(valueStart, cursor);
+          cursor++;
+        } else {
+          while (cursor < html.length && !/[\s>]/.test(html[cursor])) cursor++;
+          value = html.slice(valueStart, cursor);
+        }
+      }
+
+      if (/^on[a-z][a-z0-9:_-]*$/i.test(attributeName)) handlers.push(value);
+    }
+
+    if (!tagClosed) throw new Error("Unterminated HTML tag while scanning event handlers");
+
+    // Script and style bodies are raw text in HTML. Do not interpret strings or
+    // markup-looking source inside them as real element attributes.
+    if (tagName === "script" || tagName === "style") {
+      const closingPattern = new RegExp("</" + tagName + "\\s*>", "ig");
+      closingPattern.lastIndex = cursor;
+      const closing = closingPattern.exec(html);
+      if (!closing) throw new Error("Unterminated HTML " + tagName + " element while scanning event handlers");
+      cursor = closingPattern.lastIndex;
     }
   }
+
   return handlers;
 }
 
