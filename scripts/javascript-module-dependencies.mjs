@@ -451,8 +451,45 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
     for (let index = 0; index < tokens.length - 3; index++) {
-      if (!["const", "let", "var"].includes(tokens[index]?.value) ||
-          tokens[index + 1]?.type !== "identifier" ||
+      if (!["const", "let", "var"].includes(tokens[index]?.value)) continue;
+
+      // Support renamed destructuring from known browser globals, e.g.
+      // const { fetch: request } = window. Only literal property names and
+      // explicit global sources are accepted.
+      if (tokens[index + 1]?.value === "{") {
+        let close = index + 2;
+        while (close < tokens.length && close - index <= 32 && tokens[close]?.value !== "}") close++;
+        if (tokens[close]?.value !== "}" || tokens[close + 1]?.value !== "=" ||
+            tokens[close + 2]?.type !== "identifier") continue;
+        const source = tokens[close + 2].value;
+        const allowedSource = ["window", "globalThis", "self"].includes(source) || source === "navigator";
+        if (!allowedSource) continue;
+        let property = index + 2;
+        while (property < close) {
+          if (tokens[property]?.type !== "identifier") { property++; continue; }
+          const propertyName = tokens[property].value;
+          let aliasName = propertyName;
+          let next = property + 1;
+          if (tokens[next]?.value === ":") {
+            if (tokens[next + 1]?.type !== "identifier") { property += 2; continue; }
+            aliasName = tokens[next + 1].value;
+            next += 2;
+          }
+          let api;
+          if (["window", "globalThis", "self"].includes(source) &&
+              ["fetch", "WebSocket", "EventSource"].includes(propertyName)) api = propertyName;
+          if (source === "navigator" && propertyName === "sendBeacon") api = propertyName;
+          if (api && functionAliases.get(aliasName) !== api) {
+            functionAliases.set(aliasName, api);
+            changed = true;
+          }
+          property = next;
+          if (tokens[property]?.value === ",") property++;
+        }
+        continue;
+      }
+
+      if (tokens[index + 1]?.type !== "identifier" ||
           tokens[index + 2]?.value !== "=") continue;
       const name = tokens[index + 1].value;
       const resolved = apiFromRhs(index + 3);
