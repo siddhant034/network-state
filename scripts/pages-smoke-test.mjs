@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { extractInlineJavaScript, extractJavaScriptDependencies } from "./javascript-module-dependencies.mjs";
 
 const HTML_LIMIT = 1024 * 1024;
 const ASSET_LIMIT = 10 * 1024 * 1024;
@@ -546,6 +547,58 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   const inlineCss = extractInlineCss(html);
   for (const css of inlineCss) await inspectCss(css, documentBaseUrl.href);
 
+  const visitedModules = new Set();
+  let moduleCount = 0;
+  let totalModuleBytes = 0;
+  async function inspectJavaScript(source, moduleUrl, depth = 0) {
+    if (depth > 10) throw new Error("Published JavaScript module depth exceeds 10");
+    const dependencies = extractJavaScriptDependencies(source);
+    for (const value of dependencies.resources) {
+      const resource = new URL(value, moduleUrl);
+      if (/^data:/i.test(resource.href) || resource.href.startsWith("#")) continue;
+      assertSameOrigin(resource.href, pageUrl.origin, "Published JavaScript resource");
+      if (resource.protocol !== "https:") {
+        throw new Error("Published JavaScript resource uses an unexpected protocol: " + resource.protocol);
+      }
+    }
+    for (const specifier of dependencies.modules) {
+      if (!specifier || (!specifier.startsWith(".") && !specifier.startsWith("/") &&
+          !specifier.startsWith("//") && !/^[a-z][a-z0-9+.-]*:/i.test(specifier))) {
+        throw new Error("Published JavaScript contains an unresolved bare module specifier");
+      }
+      const dependency = new URL(specifier, moduleUrl);
+      assertSameOrigin(dependency.href, pageUrl.origin, "Published JavaScript module");
+      if (dependency.protocol !== "https:") {
+        throw new Error("Published JavaScript module uses an unexpected protocol: " + dependency.protocol);
+      }
+      const dependencyHref = normalizeStylesheetUrl(dependency.href);
+      if (visitedModules.has(dependencyHref)) continue;
+      if (depth >= 10) throw new Error("Published JavaScript module depth exceeds 10");
+      moduleCount++;
+      if (moduleCount > 40) throw new Error("Published JavaScript module count exceeds 40");
+      visitedModules.add(dependencyHref);
+      const dependencyResponse = await request(dependencyHref);
+      if (!dependencyResponse.ok) {
+        throw new Error("Published JavaScript module returned HTTP " + dependencyResponse.status + ": " + dependency.pathname);
+      }
+      const dependencyUrl = assertSameOrigin(dependencyResponse.url || dependencyHref, pageUrl.origin, "Published JavaScript module");
+      const type = dependencyResponse.headers.get("content-type") ?? "";
+      if (!/(?:javascript|ecmascript)/i.test(type)) {
+        throw new Error("Published JavaScript module has unexpected content type: " + type);
+      }
+      const bytes = await readBounded(dependencyResponse, ASSET_LIMIT, "Published JavaScript module " + dependencyUrl.pathname);
+      if (bytes.byteLength === 0) throw new Error("Published JavaScript module is empty: " + dependencyUrl.pathname);
+      totalModuleBytes += bytes.byteLength;
+      if (totalModuleBytes > 20 * ASSET_LIMIT) throw new Error("Published JavaScript module total exceeds 20 MiB");
+      visitedModules.add(normalizeStylesheetUrl(dependencyUrl.href));
+      await inspectJavaScript(new TextDecoder().decode(bytes), dependencyUrl.href, depth + 1);
+    }
+  }
+
+  for (const script of extractInlineJavaScript(html)) {
+    await inspectJavaScript(script, documentBaseUrl.href);
+  }
+
   const assets = extractAssets(html, pageUrl);
   if (assets.length === 0 || assets.length > MAX_ASSETS) {
     throw new Error(`Unexpected number of published JS/CSS assets: ${assets.length}`);
@@ -576,6 +629,19 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
       const stylesheet = new URL(stylesheetUrl.href);
       if (!visitedStylesheets.has(stylesheet.href)) visitedStylesheets.add(stylesheet.href);
       await inspectCss(new TextDecoder().decode(bytes), stylesheet.href);
+    }
+    if (asset.pathname.endsWith(".js")) {
+      const moduleUrl = assertSameOrigin(response.url || asset.href, pageUrl.origin, "Published JavaScript entry");
+      const moduleHref = normalizeStylesheetUrl(moduleUrl.href);
+      if (!visitedModules.has(moduleHref)) {
+        visitedModules.add(moduleHref);
+        moduleCount++;
+        totalModuleBytes += bytes.byteLength;
+        if (moduleCount > 40 || totalModuleBytes > 20 * ASSET_LIMIT) {
+          throw new Error("Published JavaScript module budget exceeded");
+        }
+        await inspectJavaScript(new TextDecoder().decode(bytes), moduleHref);
+      }
     }
   }
   return { pageUrl: pageUrl.href, assetCount: assets.length, resourceCount: resources.length };
