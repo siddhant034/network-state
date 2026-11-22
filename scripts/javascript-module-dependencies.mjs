@@ -177,8 +177,7 @@ export function extractJavaScriptDependencies(source) {
         else if (tokens[cursor]?.value !== ")") throw new Error("Cannot audit importScripts arguments");
       }
       if (tokens[cursor]?.value !== ")") throw new Error("Unterminated importScripts call");
-      index = cursor;
-      continue;
+      index = cursor;      continue;
     }
 
     if (token.value === "new" && ["Worker", "SharedWorker"].includes(tokens[index + 1]?.value) &&
@@ -357,8 +356,7 @@ export function extractInlineEventHandlers(html) {
       continue;
     }
     if (!/[a-z]/i.test(next ?? "")) {
-      cursor++;
-      continue;
+      cursor++;      continue;
     }
 
     cursor += 1;
@@ -408,7 +406,9 @@ export function extractInlineEventHandlers(html) {
         }
       }
 
-      if (/^on[a-z][a-z0-9:_-]*$/i.test(attributeName)) {\n        handlers.push(decodeHtmlCharacterReferences(value));\n      }
+      if (/^on[a-z][a-z0-9:_-]*$/i.test(attributeName)) {
+        handlers.push(decodeHtmlCharacterReferences(value));
+      }
     }
 
     if (!tagClosed) throw new Error("Unterminated HTML tag while scanning event handlers");
