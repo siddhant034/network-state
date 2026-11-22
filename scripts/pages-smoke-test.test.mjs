@@ -666,3 +666,16 @@ test("checks inline JavaScript module imports against the published origin", asy
     /Published JavaScript module redirected to an unexpected origin/,
   );
 });
+
+
+test("ignores module-like text inside JavaScript regular expression literals", () => {
+  const source = String.raw`const matcher = /import\\("https:\\/\\/fake\\.example\\/x\\.js"\\)/;`;
+  assert.deepEqual(extractJavaScriptDependencies(source), { modules: [], resources: [] });
+});
+
+test("does not scan non-executable JSON script blocks as JavaScript", () => {
+  assert.deepEqual(
+    extractInlineJavaScript('<script type="application/ld+json">{"note":"import(\\\\\\"https://fake.example\\\\\\")"}</script>'),
+    [],
+  );
+});
