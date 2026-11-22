@@ -48,6 +48,14 @@ function readString(source, start) {
   throw new Error("Unterminated JavaScript string");
 }
 
+function canStartRegex(previous) {
+  if (!previous) return true;
+  if (previous.type === "identifier") {
+    return ["return", "throw", "case", "delete", "void", "typeof", "instanceof", "in", "of", "yield", "await"].includes(previous.value);
+  }
+  return ["(", "[", "{", ",", ";", ":", "=", "!", "?", "&", "|", "+", "-", "*", "%", "~", "^", "<", ">", "=>"].includes(previous.value);
+}
+
 function tokenize(source) {
   const tokens = [];
   let cursor = 0;
@@ -67,6 +75,34 @@ function tokenize(source) {
       const close = source.indexOf("*/", cursor + 2);
       if (close < 0) throw new Error("Unterminated JavaScript comment");
       cursor = close + 2;
+      continue;
+    }
+    if (character === "/" && canStartRegex(tokens.at(-1))) {
+      const start = cursor++;
+      let inClass = false;
+      let closed = false;
+      while (cursor < source.length) {
+        if (source[cursor] === "\\") {
+          cursor += 2;
+        } else if (source[cursor] === "[" && !inClass) {
+          inClass = true;
+          cursor++;
+        } else if (source[cursor] === "]" && inClass) {
+          inClass = false;
+          cursor++;
+        } else if (source[cursor] === "/" && !inClass) {
+          cursor++;
+          while (cursor < source.length && /[a-z]/i.test(source[cursor])) cursor++;
+          closed = true;
+          break;
+        } else if (source[cursor] === "\n" || source[cursor] === "\r") {
+          break;
+        } else {
+          cursor++;
+        }
+      }
+      if (!closed) throw new Error("Unterminated JavaScript regular expression");
+      tokens.push({ type: "regex", value: source.slice(start, cursor) });
       continue;
     }
     if (character === "'" || character === '"') {
