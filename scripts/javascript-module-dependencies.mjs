@@ -391,6 +391,12 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       tokens[index + 1]?.value === "]";
   }
 
+  function memberCallOpen(index) {
+    return tokens[index]?.type === "string"
+      ? callOpenAfter(index + 1)
+      : callOpenAfter(index);
+  }
+
   function auditCall(openIndex) {
     if (openIndex < 0) return;
     const value = staticUrlArgument(openIndex);
@@ -423,9 +429,9 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       auditCall(callOpenAfter(index + 4));
     }
 
-    if (isMemberName(index, "sendBeacon")) auditCall(callOpenAfter(index));
+    if (isMemberName(index, "sendBeacon")) auditCall(memberCallOpen(index));
     if (isMemberName(index, "open")) {
-      const openIndex = callOpenAfter(index);
+      const openIndex = memberCallOpen(index);
       if (openIndex >= 0 &&
           tokens[openIndex + 1]?.type === "string" &&
           /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[openIndex + 1].value) &&
