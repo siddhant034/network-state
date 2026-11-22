@@ -4,7 +4,7 @@
  * application identifiers are non-sensitive.
  */
 const sensitivePathLabels = /^(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|key|secret|password|passwd|auth|authorization|session(?:id)?|sid|reset(?:[_-]?token)?|invite(?:[_-]?code)?|verification[_-]?code|email|phone|otp)$/i;
-const emailLikeSegment = /^[^/?#@\\s]+@[^/?#@\\s]+\\.[^/?#@\\s]+$/;
+const emailLikeSegment = /^[^/?#@\s]+@[^/?#@\s]+\.[^/?#@\s]+$/;
 
 function decodeSegment(value: string): string {
   try { return decodeURIComponent(value); } catch { return value; }
@@ -28,7 +28,7 @@ export function redactSensitivePath(pathname: string): string {
         segments[i] = decoded.slice(0, separator) + "=[redacted]";
       }
     }
-    if (/^[A-Za-z0-9_-]{12,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}$/.test(decoded)) {
+    if (/^[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$/.test(decoded)) {
       segments[i] = "[redacted]";
     }
   }
