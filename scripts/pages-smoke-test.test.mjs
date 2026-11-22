@@ -1276,3 +1276,38 @@ test("rejects a bound third-party fetch before contacting the host", async () =>
   );
   assert.equal(requests.some((url) => url.includes("tracker.example")), false);
 });
+
+test("fails closed on dynamic JavaScript code execution primitives", () => {
+  const sources = [
+    "eval(\"fetch('https://tracker.example/eval')\")",
+    "new Function(\"return fetch('https://tracker.example/function')\")",
+    "globalThis[\"eval\"](\"fetch('https://tracker.example/computed-eval')\")",
+    "setTimeout(\"fetch('https://tracker.example/timer')\", 0)",
+    "setInterval(\"fetch('https://tracker.example/interval')\", 1000)"
+  ];
+  for (const source of sources) {
+    assert.throws(
+      () => extractJavaScriptNetworkUrls(source),
+      /Cannot audit dynamic JavaScript code execution|Cannot audit string-based JavaScript timer code/,
+    );
+  }
+});
+
+test("rejects dynamic-code third-party requests before contacting the host", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('eval("fetch(\\\"https://tracker.example/generated\\\")");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Cannot audit dynamic JavaScript code execution/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
