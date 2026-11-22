@@ -1,3 +1,5 @@
+import { redactSensitivePath } from "../privacy/url-redaction";
+
 export type RequestTransport = "fetch" | "xhr";
 export type RequestOutcome = "success" | "http-error" | "network-error" | "timeout" | "aborted";
 
