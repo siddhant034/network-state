@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { extractInlineJavaScript, extractJavaScriptDependencies } from "./javascript-module-dependencies.mjs";
+import { extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
 
 const HTML_LIMIT = 1024 * 1024;
 const ASSET_LIMIT = 10 * 1024 * 1024;
@@ -571,6 +571,14 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
   async function inspectJavaScript(source, moduleUrl, depth = 0) {
     if (depth > 10) throw new Error("Published JavaScript module depth exceeds 10");
     const dependencies = extractJavaScriptDependencies(source);
+    for (const value of extractJavaScriptNetworkUrls(source)) {
+      const requestUrl = new URL(value, moduleUrl);
+      if (/^data:/i.test(requestUrl.href) || requestUrl.href.startsWith("#")) continue;
+      assertSameOrigin(requestUrl.href, pageUrl.origin, "Published JavaScript request");
+      if (requestUrl.protocol !== "https:") {
+        throw new Error("Published JavaScript request uses an unexpected protocol: " + requestUrl.protocol);
+      }
+    }
     for (const value of dependencies.resources) {
       const resource = new URL(value, moduleUrl);
       if (/^data:/i.test(resource.href) || resource.href.startsWith("#")) continue;
@@ -615,6 +623,9 @@ export async function verifyPublishedSite(configuredUrl, fetchImpl = fetch) {
 
   for (const script of extractInlineJavaScript(html)) {
     await inspectJavaScript(script, documentBaseUrl.href);
+  }
+  for (const handler of extractInlineEventHandlers(html)) {
+    await inspectJavaScript(decodeHtmlAttribute(handler), documentBaseUrl.href);
   }
 
   const assets = extractAssets(html, pageUrl);
