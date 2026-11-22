@@ -818,6 +818,48 @@ test("extracts literal JavaScript request URLs from supported network APIs", () 
   ]);
 });
 
+test("audits network calls inside template expressions without scanning template text", () => {
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls(String.raw\`const label = \`prefix \${fetch("https://tracker.example/inside")} suffix\`;`),
+    ["https://tracker.example/inside"],
+  );
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls(String.raw\`fetch(\`/safe/\${fetch("https://tracker.example/nested") }\`);`),
+    ["https://tracker.example/nested"],
+  );
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls(String.raw\`const text = \`not code: fetch("https://ignored.example")\`;`),
+    [],
+  );
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls(String.raw\`const value = \`object: \${({ close: "}", ok: fetch("/same-origin") }).ok}\`;`),
+    ["/same-origin"],
+  );
+  assert.throws(
+    () => extractJavaScriptNetworkUrls(String.raw\`const value = \`nested \${\`inner\`}\`;`),
+    /Cannot audit nested template/,
+  );
+});
+
+test("rejects template-expression third-party requests before contacting them", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('const text = \`prefix \${fetch("https://tracker.example/template")} suffix\`;', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/template"), false);
+});
+
 test("extracts inline event handler code for privacy scanning", () => {
   const handlers = extractInlineEventHandlers(
     `<button onclick="fetch('https://tracker.example/click')">Open</button>` +
