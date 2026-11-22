@@ -451,6 +451,25 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
     for (let index = 0; index < tokens.length - 3; index++) {
+      // Include simple post-declaration assignments (let request; request = fetch)
+      // in the static alias model. If a tracked alias is reassigned to an
+      // unknown value, invalidate it; repeated conflicting writes fail closed.
+      const assignmentTarget = tokens[index]?.value === "=" &&
+        tokens[index - 1]?.type === "identifier" &&
+        tokens[index - 2]?.value !== "." &&
+        tokens[index + 1]?.value !== "=" &&
+        tokens[index - 1]?.value !== "const";
+      if (assignmentTarget) {
+        const name = tokens[index - 1].value;
+        const resolved = apiFromRhs(index + 1);
+        if (resolved && functionAliases.get(name) !== resolved.api) {
+          functionAliases.set(name, resolved.api);
+          changed = true;
+        } else if (!resolved && functionAliases.has(name)) {
+          functionAliases.delete(name);
+          changed = true;
+        }
+      }
       if (!["const", "let", "var"].includes(tokens[index]?.value)) continue;
 
       // Support renamed destructuring from known browser globals, e.g.
