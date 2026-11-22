@@ -11,7 +11,7 @@ function decodeSegment(value: string): string {
 
 export function redactSensitivePath(pathname: string): string {
   const segments = pathname.split("/");
-  for ( (let i = 0; i < segments.length; i++) {
+  for (let i = 0; i < segments.length; i++) {
     const decoded = decodeSegment(segments[i]);
     if (sensitivePathLabels.test(decoded)) {
       if (i + 1 < segments.length && segments[i + 1] !== "") segments[i + 1] = "[redacted]";
