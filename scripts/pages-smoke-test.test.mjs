@@ -679,3 +679,30 @@ test("does not scan non-executable JSON script blocks as JavaScript", () => {
     [],
   );
 });
+
+
+test("audits worker, importScripts, and service-worker script references", () => {
+  const source = 'new Worker(new URL("./worker.js", import.meta.url)); importScripts("./legacy.js"); navigator.serviceWorker.register("./sw.js");';
+  assert.deepEqual(extractJavaScriptDependencies(source), {
+    modules: ["./worker.js", "./legacy.js", "./sw.js"],
+    resources: ["./worker.js"],
+  });
+});
+
+test("rejects third-party importScripts dependencies in a same-origin worker", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") return response('new Worker(new URL("./worker.js", import.meta.url));', href, 200, "text/javascript");
+    if (href === origin + "/assets/worker.js") return response('importScripts("https://tracker.example/legacy.js");', href, 200, "text/javascript");
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript module redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/legacy.js"), false);
+});
