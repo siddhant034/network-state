@@ -1159,7 +1159,7 @@ test("audits aliases assigned after declaration and rejects ambiguous reassignme
     "let beacon;",
     "beacon = navigator.sendBeacon;",
     'beacon("https://tracker.example/assigned-beacon", payload);',
-  ].join("\\n");
+  ].join("\n");
   assert.deepEqual(extractJavaScriptNetworkUrls(source), [
     "https://tracker.example/assigned",
     "https://tracker.example/assigned-beacon",
@@ -1170,7 +1170,7 @@ test("audits aliases assigned after declaration and rejects ambiguous reassignme
       "const request = fetch;",
       "request = customTransport;",
       'request("https://tracker.example/reassigned");',
-    ].join("\\n")),
+    ].join("\n")),
     /alias depth exceeds 8/,
   );
 });
