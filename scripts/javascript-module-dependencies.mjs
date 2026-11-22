@@ -177,8 +177,7 @@ export function extractJavaScriptDependencies(source) {
         else if (tokens[cursor]?.value !== ")") throw new Error("Cannot audit importScripts arguments");
       }
       if (tokens[cursor]?.value !== ")") throw new Error("Unterminated importScripts call");
-      index = cursor;      continue;
-    }
+      index = cursor;      continue;    }
 
     if (token.value === "new" && ["Worker", "SharedWorker"].includes(tokens[index + 1]?.value) &&
         tokens[index + 2]?.value === "(" && tokens[index + 3]?.type === "string") {
@@ -302,7 +301,7 @@ const HTML_CHARACTER_REFERENCES = new Map([
 ]);
 
 export function decodeHtmlCharacterReferences(value) {
-  return value.replace(/&(#(?:x[0-9a-f]{1,8}|[0-9]{1,10})|[a-z][a-z0-9]+);?/gi, (entity, reference) => {
+  return value.replace(/&(#(?:x[0-9a-f]+|[0-9]+)|[a-z][a-z0-9]+);?/gi, (entity, reference) => {
     if (reference[0] !== "#") {
       // Decode only explicitly supported named references. Numeric references
       // cover arbitrary encoded ASCII syntax; unknown names stay untouched.
@@ -358,7 +357,6 @@ export function extractInlineEventHandlers(html) {
     if (!/[a-z]/i.test(next ?? "")) {
       cursor++;      continue;
     }
-
     cursor += 1;
     const nameStart = cursor;
     while (cursor < html.length && /[a-z0-9:-]/i.test(html[cursor])) cursor++;
