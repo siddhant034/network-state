@@ -1,5 +1,5 @@
 import test from "node:test";
-import { extractInlineJavaScript, extractJavaScriptDependencies } from "./javascript-module-dependencies.mjs";
+import { extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
 import assert from "node:assert/strict";
 import { extractAssets, extractCssImports, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
@@ -768,4 +768,88 @@ test("rejects an eleventh JavaScript module depth before requesting it", async (
   };
   await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /module depth exceeds 10/);
   assert.deepEqual(requested, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
+
+
+test("extracts literal JavaScript request URLs from supported network APIs", () => {
+  const source = String.raw`fetch("https://cdn.example/data.json");
+    globalThis.fetch(new URL("/api/status", import.meta.url));
+    new WebSocket("wss://socket.example/live");
+    new EventSource("https://events.example/stream");
+    navigator.sendBeacon("/telemetry", payload);
+    xhr.open("POST", "https://api.example/submit", true);
+    fetch(configuredEndpoint);`;
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://cdn.example/data.json",
+    "/api/status",
+    "wss://socket.example/live",
+    "https://events.example/stream",
+    "/telemetry",
+    "https://api.example/submit",
+  ]);
+});
+
+test("extracts inline event handler code for privacy scanning", () => {
+  const handlers = extractInlineEventHandlers(
+    '<button onclick="fetch(\\'https://tracker.example/click\\')">Open</button>' +
+    '<img onerror = "navigator.sendBeacon(\\'/pixel\\', data)">' +
+    '<a href="/docs">Documentation</a>',
+  );
+  assert.deepEqual(handlers, [
+    "fetch('https://tracker.example/click')",
+    "navigator.sendBeacon('/pixel', data)",
+  ]);
+});
+
+test("rejects a third-party literal fetch in a same-origin JavaScript asset before contacting it", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('fetch("https://tracker.example/collect");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.includes("https://tracker.example/collect"), false);
+});
+
+test("rejects third-party requests in inline event handlers before any outbound request", async () => {
+  const unsafeHtml = html.replace(
+    "</body>",
+    '<img onerror="fetch(\\'https://tracker.example/error\\')"></body>',
+  );
+  const requests = [];
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      requests.push(href);
+      if (href === origin + "/") return response(unsafeHtml, href);
+      if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+      if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+      throw new Error("unexpected request: " + href);
+    }),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
+
+test("allows same-origin literal network calls and leaves user-configured targets dynamic", async () => {
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('fetch("/health"); fetch(configuredEndpoint);', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  const result = await verifyPublishedSite(origin + "/", fetchImpl);
+  assert.equal(result.assetCount, 2);
 });
