@@ -237,7 +237,105 @@ export function extractJavaScriptDependencies(source) {
   return { modules: [...new Set(modules)], resources: [...new Set(resources)] };
 }
 
-export function extractJavaScriptNetworkUrls(source) {
+
+function skipJavaScriptQuoted(source, position, quote) {
+  let cursor = position + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === "\\\\") cursor += 2;
+    else if (source[cursor] === quote) return cursor + 1;
+    else cursor++;
+  }
+  throw new Error("Unterminated JavaScript string in template expression");
+}
+
+function canStartTemplateRegex(source, position) {
+  let cursor = position - 1;
+  while (cursor >= 0 && /\\s/.test(source[cursor])) cursor--;
+  const previous = source[cursor] ?? "";
+  if ("([{,:;=!?&|+-*%^~<>".includes(previous)) return true;
+  const word = source.slice(0, cursor + 1).match(/[a-z_$][a-z0-9_$]*$/i)?.[0];
+  return ["return", "throw", "case", "delete", "void", "typeof", "instanceof", "in", "of", "yield", "await"].includes(word);
+}
+
+function skipJavaScriptRegex(source, position) {
+  let cursor = position + 1;
+  let inClass = false;
+  while (cursor < source.length) {
+    if (source[cursor] === "\\\\") cursor += 2;
+    else if (source[cursor] === "[" && !inClass) { inClass = true; cursor++; }
+    else if (source[cursor] === "]" && inClass) { inClass = false; cursor++; }
+    else if (source[cursor] === "/" && !inClass) {
+      cursor++;
+      while (/[a-z]/i.test(source[cursor] ?? "")) cursor++;
+      return cursor;
+    } else if (/[\\r\\n]/.test(source[cursor])) break;
+    else cursor++;
+  }
+  throw new Error("Unterminated JavaScript regular expression in template expression");
+}
+
+function findTemplateExpressionEnd(source, position) {
+  let depth = 1;
+  let cursor = position;
+  while (cursor < source.length) {
+    const character = source[cursor];
+    if (character === "'" || character === '"') {
+      cursor = skipJavaScriptQuoted(source, cursor, character);
+      continue;
+    }
+    if (character === "`") {
+      // A nested template is valid JavaScript, but this lightweight verifier
+      // cannot safely audit its nested expression grammar yet.
+      throw new Error("Cannot audit nested template inside JavaScript template expression");
+    }
+    if (character === "/" && source[cursor + 1] === "/") {
+      cursor += 2;
+      while (cursor < source.length && !/[\\r\\n]/.test(source[cursor])) cursor++;
+      continue;
+    }
+    if (character === "/" && source[cursor + 1] === "*") {
+      const close = source.indexOf("*/", cursor + 2);
+      if (close < 0) throw new Error("Unterminated JavaScript comment in template expression");
+      cursor = close + 2;
+      continue;
+    }
+    if (character === "/" && canStartTemplateRegex(source, cursor)) {
+      cursor = skipJavaScriptRegex(source, cursor);
+      continue;
+    }
+    if (character === "{") depth++;
+    else if (character === "}" && --depth === 0) return cursor;
+    cursor++;
+  }
+  throw new Error("Unterminated JavaScript template expression");
+}
+
+function extractTemplateExpressions(raw) {
+  if (!raw.startsWith("`") || !raw.endsWith("`")) {
+    throw new Error("Cannot audit malformed JavaScript template");
+  }
+  const expressions = [];
+  const end = raw.length - 1;
+  let cursor = 1;
+  while (cursor < end) {
+    if (raw[cursor] === "\\\\") {
+      cursor += 2;
+      continue;
+    }
+    if (raw[cursor] === "$" && raw[cursor + 1] === "{") {
+      const expressionStart = cursor + 2;
+      const expressionEnd = findTemplateExpressionEnd(raw, expressionStart);
+      expressions.push(raw.slice(expressionStart, expressionEnd));
+      cursor = expressionEnd + 1;
+      continue;
+    }
+    cursor++;
+  }
+  return expressions;
+}
+
+export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
+  if (templateDepth > 10) throw new Error("JavaScript template expression depth exceeds 10");
   const tokens = tokenize(source);
   const urls = [];
 
@@ -311,6 +409,16 @@ export function extractJavaScriptNetworkUrls(source) {
         tokens[index + 3]?.value === ",") {
       const value = staticUrlArgument(index + 4);
       if (value !== undefined) urls.push(value);
+    }
+  }
+
+  // Template expressions execute JavaScript. Scan their code recursively rather
+  // than treating the entire template token as inert text; otherwise a nested
+  // fetch() could escape the static request-origin audit.
+  for (const token of tokens) {
+    if (token.type !== "template" || !token.value.includes("${")) continue;
+    for (const expression of extractTemplateExpressions(token.value)) {
+      urls.push(...extractJavaScriptNetworkUrls(expression, templateDepth + 1));
     }
   }
 
