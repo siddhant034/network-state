@@ -352,8 +352,6 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     const content = raw.slice(1, -1);
     const interpolation = content.indexOf("${");
     const prefix = interpolation < 0 ? content : content.slice(0, interpolation);
-    // Template escape processing can change URL punctuation. Refuse ambiguous
-    // escapes instead of interpreting raw source differently from the browser.
     if (prefix.includes(String.fromCharCode(92))) {
       throw new Error("Cannot audit escaped JavaScript template URL");
     }
@@ -365,58 +363,81 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     return prefix;
   }
 
-  function staticUrlArgument(position) {
-    const direct = literalUrl(tokens[position]);
+  function staticUrlArgument(openIndex) {
+    const direct = literalUrl(tokens[openIndex + 1]);
     if (direct !== undefined) return direct;
-    if (tokens[position]?.value === "new" &&
-        tokens[position + 1]?.value === "URL" &&
-        tokens[position + 2]?.value === "(") {
-      return literalUrl(tokens[position + 3]);
+    if (tokens[openIndex + 1]?.value === "new" &&
+        tokens[openIndex + 2]?.value === "URL" &&
+        tokens[openIndex + 3]?.value === "(") {
+      return literalUrl(tokens[openIndex + 4]);
     }
     return undefined;
   }
 
+  function callOpenAfter(index) {
+    if (tokens[index + 1]?.value === "(") return index + 1;
+    if (tokens[index + 1]?.value === "?" &&
+        tokens[index + 2]?.value === "." &&
+        tokens[index + 3]?.value === "(") return index + 3;
+    return -1;
+  }
+
+  function isMemberName(index, name) {
+    const token = tokens[index];
+    if (token?.value !== name) return false;
+    if (token.type === "identifier" && tokens[index - 1]?.value === ".") return true;
+    return token.type === "string" &&
+      tokens[index - 1]?.value === "[" &&
+      tokens[index + 1]?.value === "]";
+  }
+
+  function auditCall(openIndex) {
+    if (openIndex < 0) return;
+    const value = staticUrlArgument(openIndex);
+    if (value !== undefined) urls.push(value);
+  }
+
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index];
-    if (token.type !== "identifier") continue;
 
-    // Literal first arguments to fetch() are requests, whether fetch is global
-    // or accessed through window/globalThis. Dynamic values are intentionally
-    // left alone because the application supports user-entered probe targets.
-    if (token.value === "fetch" && tokens[index + 1]?.value === "(") {
-      const value = staticUrlArgument(index + 2);
-      if (value !== undefined) urls.push(value);
+    // fetch can be referenced directly, through window/globalThis, or with a
+    // literal computed property. Optional calls preserve the same static first
+    // argument and must not bypass the origin check.
+    if (token.type === "identifier" && token.value === "fetch") {
+      auditCall(callOpenAfter(index));
+    } else if (token.type === "string" && token.value === "fetch" &&
+        tokens[index - 1]?.value === "[" && tokens[index + 1]?.value === "]") {
+      auditCall(callOpenAfter(index + 1));
     }
 
-    if (token.value === "new" &&
-        ["WebSocket", "EventSource"].includes(tokens[index + 1]?.value) &&
-        tokens[index + 2]?.value === "(") {
-      const value = staticUrlArgument(index + 3);
-      if (value !== undefined) urls.push(value);
+    if (token.type === "identifier" && token.value === "new" &&
+        ["WebSocket", "EventSource"].includes(tokens[index + 1]?.value)) {
+      auditCall(callOpenAfter(index + 1));
+    }
+    if (token.type === "identifier" && token.value === "new" &&
+        tokens[index + 1]?.type === "identifier" &&
+        tokens[index + 2]?.value === "[" &&
+        tokens[index + 3]?.type === "string" &&
+        ["WebSocket", "EventSource"].includes(tokens[index + 3].value) &&
+        tokens[index + 4]?.value === "]") {
+      auditCall(callOpenAfter(index + 4));
     }
 
-    if (token.value === "sendBeacon" && tokens[index - 1]?.value === "." &&
-        tokens[index + 1]?.value === "(") {
-      const value = staticUrlArgument(index + 2);
-      if (value !== undefined) urls.push(value);
-    }
-
-    // XMLHttpRequest.open(method, url[, async]) has a stable two-argument
-    // prefix. Restrict this heuristic to literal HTTP method names to avoid
-    // treating unrelated object.open() calls as network requests.
-    if (token.value === "open" && tokens[index - 1]?.value === "." &&
-        tokens[index + 1]?.value === "(" &&
-        tokens[index + 2]?.type === "string" &&
-        /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[index + 2].value) &&
-        tokens[index + 3]?.value === ",") {
-      const value = staticUrlArgument(index + 4);
-      if (value !== undefined) urls.push(value);
+    if (isMemberName(index, "sendBeacon")) auditCall(callOpenAfter(index));
+    if (isMemberName(index, "open")) {
+      const openIndex = callOpenAfter(index);
+      if (openIndex >= 0 &&
+          tokens[openIndex + 1]?.type === "string" &&
+          /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[openIndex + 1].value) &&
+          tokens[openIndex + 2]?.value === ",") {
+        const value = staticUrlArgument(openIndex + 2);
+        if (value !== undefined) urls.push(value);
+      }
     }
   }
 
   // Template expressions execute JavaScript. Scan their code recursively rather
-  // than treating the entire template token as inert text; otherwise a nested
-  // fetch() could escape the static request-origin audit.
+  // than treating the entire template token as inert text.
   for (const token of tokens) {
     if (token.type !== "template" || !token.value.includes("${")) continue;
     for (const expression of extractTemplateExpressions(token.value)) {
