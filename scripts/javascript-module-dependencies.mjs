@@ -241,13 +241,37 @@ export function extractJavaScriptNetworkUrls(source) {
   const tokens = tokenize(source);
   const urls = [];
 
+  function literalUrl(token) {
+    if (token?.type === "string") return token.value;
+    if (token?.type !== "template") return undefined;
+
+    const raw = token.value;
+    if (!raw.startsWith("`") || !raw.endsWith("`")) {
+      throw new Error("Cannot audit malformed JavaScript template URL");
+    }
+    const content = raw.slice(1, -1);
+    const interpolation = content.indexOf("${");
+    const prefix = interpolation < 0 ? content : content.slice(0, interpolation);
+    // Template escape processing can change URL punctuation. Refuse ambiguous
+    // escapes instead of interpreting raw source differently from the browser.
+    if (prefix.includes(String.fromCharCode(92))) {
+      throw new Error("Cannot audit escaped JavaScript template URL");
+    }
+    if (interpolation < 0) return prefix;
+    if (!prefix.trim()) return undefined;
+    if (prefix === "https://" || prefix === "http://") {
+      throw new Error("Cannot audit incomplete interpolated JavaScript URL");
+    }
+    return prefix;
+  }
+
   function staticUrlArgument(position) {
-    if (tokens[position]?.type === "string") return tokens[position].value;
+    const direct = literalUrl(tokens[position]);
+    if (direct !== undefined) return direct;
     if (tokens[position]?.value === "new" &&
         tokens[position + 1]?.value === "URL" &&
-        tokens[position + 2]?.value === "(" &&
-        tokens[position + 3]?.type === "string") {
-      return tokens[position + 3].value;
+        tokens[position + 2]?.value === "(") {
+      return literalUrl(tokens[position + 3]);
     }
     return undefined;
   }
