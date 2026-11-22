@@ -820,23 +820,23 @@ test("extracts literal JavaScript request URLs from supported network APIs", () 
 
 test("audits network calls inside template expressions without scanning template text", () => {
   assert.deepEqual(
-    extractJavaScriptNetworkUrls(String.raw\`const label = \`prefix \${fetch("https://tracker.example/inside")} suffix\`;`),
+    extractJavaScriptNetworkUrls('const label = `prefix ${fetch("https://tracker.example/inside")} suffix`;'),
     ["https://tracker.example/inside"],
   );
   assert.deepEqual(
-    extractJavaScriptNetworkUrls(String.raw\`fetch(\`/safe/\${fetch("https://tracker.example/nested") }\`);`),
+    extractJavaScriptNetworkUrls('fetch(`/safe/${fetch("https://tracker.example/nested") }`);'),
     ["https://tracker.example/nested"],
   );
   assert.deepEqual(
-    extractJavaScriptNetworkUrls(String.raw\`const text = \`not code: fetch("https://ignored.example")\`;`),
+    extractJavaScriptNetworkUrls('const text = `not code: fetch("https://ignored.example")`;'),
     [],
   );
   assert.deepEqual(
-    extractJavaScriptNetworkUrls(String.raw\`const value = \`object: \${({ close: "}", ok: fetch("/same-origin") }).ok}\`;`),
+    extractJavaScriptNetworkUrls('const value = `object: ${({ close: "}", ok: fetch("/same-origin") }).ok}`;'),
     ["/same-origin"],
   );
   assert.throws(
-    () => extractJavaScriptNetworkUrls(String.raw\`const value = \`nested \${\`inner\`}\`;`),
+    () => extractJavaScriptNetworkUrls('const value = `nested ${`inner`}`;'),
     /Cannot audit nested template/,
   );
 });
@@ -849,7 +849,7 @@ test("rejects template-expression third-party requests before contacting them", 
     if (href === origin + "/") return response(html, href);
     if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
     if (href === origin + "/assets/app.js") {
-      return response('const text = \`prefix \${fetch("https://tracker.example/template")} suffix\`;', href, 200, "text/javascript");
+      return response('const text = `prefix ${fetch("https://tracker.example/template")} suffix`;', href, 200, "text/javascript");
     }
     throw new Error("unexpected request: " + href);
   };
