@@ -748,3 +748,24 @@ test("follows bounded same-origin redirects manually", async () => {
     origin + "/assets/final.js",
   ]);
 });
+
+
+test("rejects an eleventh JavaScript module depth before requesting it", async () => {
+  const requested = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{color:black}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") return response('import("/modules/1.js");', href, 200, "text/javascript");
+    const match = new URL(href).pathname.match(/^\/modules\/(\d+)\.js$/);
+    if (match) {
+      const level = Number(match[1]);
+      requested.push(level);
+      const next = "import(\"/modules/" + (level + 1) + ".js\");";
+      return response(level < 11 ? next : "export {};", href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(verifyPublishedSite(origin + "/", fetchImpl), /module depth exceeds 10/);
+  assert.deepEqual(requested, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
