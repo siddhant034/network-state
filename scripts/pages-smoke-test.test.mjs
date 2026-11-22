@@ -948,7 +948,7 @@ test("resource discovery respects quoted greater-than signs and ignores markup i
   );
   assert.deepEqual(
     extractResourceUrls(document, new URL(origin + "/")).map((url) => url.href),
-    [origin + "/assets/status.png"],
+    [origin + "/assets/app.js", origin + "/assets/status.png"],
   );
 });
 
