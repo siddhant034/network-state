@@ -5,6 +5,8 @@
  */
 const sensitivePathLabels = /^(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|key|secret|password|passwd|auth|authorization|session(?:id)?|sid|reset(?:[_-]?token)?|invite(?:[_-]?code)?|verification[_-]?code|email|phone|otp)$/i;
 const emailLikeSegment = /^[^/?#@\s]+@[^/?#@\s]+\.[^/?#@\s]+$/;
+// UUIDs commonly encode account, device, and transaction identifiers.
+const uuidLikeSegment = /^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$/i;
 // Avoid masking unformatted 8-digit dates/IDs. Require a prefix, separators,
 // or a conventional 10+ digit international/national number for plain digits.
 const phoneLikeSegment = /^\+?(?:\d[\s().-]*){7,15}$/;
@@ -23,7 +25,7 @@ export function redactSensitivePath(pathname: string): string {
   const segments = pathname.split("/");
   for (let i = 0; i < segments.length; i++) {
     const decoded = decodeSegment(segments[i]);
-    if (emailLikeSegment.test(decoded) || isPhoneLike(decoded)) {
+    if (emailLikeSegment.test(decoded) || uuidLikeSegment.test(decoded) || isPhoneLike(decoded)) {
       segments[i] = "[redacted]";
       continue;
     }
