@@ -1115,6 +1115,20 @@ test("audits statically aliased network APIs and bounded alias chains", () => {
     "https://tracker.example/destructured-beacon",
     "wss://tracker.example/destructured-socket",
   ]);
+  const deepAlias = [
+    "const alias0 = alias1;",
+    "const alias1 = alias2;",
+    "const alias2 = alias3;",
+    "const alias3 = alias4;",
+    "const alias4 = alias5;",
+    "const alias5 = alias6;",
+    "const alias6 = alias7;",
+    "const alias7 = alias8;",
+    "const alias8 = alias9;",
+    "const alias9 = fetch;",
+    'alias0("https://tracker.example/deep-alias");',
+  ].join("\\n");
+  assert.throws(() => extractJavaScriptNetworkUrls(deepAlias), /alias depth exceeds 8/);
 });
 
 test("rejects an aliased third-party fetch before contacting the host", async () => {
