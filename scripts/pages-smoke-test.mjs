@@ -113,6 +113,10 @@ function getAttribute(attributes, name) {
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
+function decodeHtmlAttribute(value) {
+  return decodeHtmlCharacterReferences(value);
+}
+
 export function getDocumentBaseUrl(html, pageUrl) {
   let inHead = false;
   for (const { tag, attributes, closing } of scanHtmlTags(html)) {
