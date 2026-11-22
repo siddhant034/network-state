@@ -971,3 +971,39 @@ test("HTML resource scanner fails closed on malformed quoted attributes and raw 
     /Unterminated HTML script element/,
   );
 });
+
+
+test("audits static template-literal network URLs and their literal prefixes", () => {
+  const source = "fetch(`https://tracker.example/pixel`); " +
+    "fetch(`/health/${id}`); " +
+    "fetch(`${configuredEndpoint}`); " +
+    "fetch(new URL(`/status`, import.meta.url));";
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://tracker.example/pixel",
+    "/health/",
+    "/status",
+  ]);
+  assert.throws(
+    () => extractJavaScriptNetworkUrls("fetch(`https://${host}/pixel`);"),
+    /incomplete interpolated JavaScript URL/,
+  );
+});
+
+test("rejects third-party static template fetch before contacting the host", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response("fetch(`https://tracker.example/${sessionId}`);", href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
