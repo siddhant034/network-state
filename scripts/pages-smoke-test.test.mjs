@@ -1203,7 +1203,7 @@ test("audits statically bound fetch URL aliases", () => {
     "let assignedRequest;",
     'assignedRequest = fetch.bind(null, "https://tracker.example/assigned-bound");',
     "assignedRequest();",
-  ].join("\\n");
+  ].join("\n");
   assert.deepEqual(extractJavaScriptNetworkUrls(source), [
     "https://tracker.example/bound",
     "https://tracker.example/assigned-bound",
