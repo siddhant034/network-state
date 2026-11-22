@@ -403,6 +403,67 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     if (value !== undefined) urls.push(value);
   }
 
+  // Track simple, statically initialized aliases of network APIs. This catches
+  // common refactors such as const request = fetch; request(url), while keeping
+  // unrelated object methods out of the network audit.
+  const functionAliases = new Map();
+  const directApis = new Set(["fetch", "sendBeacon", "WebSocket", "EventSource"]);
+
+  function memberApiAt(start) {
+    const base = tokens[start];
+    if (base?.type !== "identifier") return undefined;
+    let member, next;
+    if (tokens[start + 1]?.value === "." && tokens[start + 2]?.type === "identifier") {
+      member = tokens[start + 2].value;
+      next = start + 3;
+    } else if (tokens[start + 1]?.value === "[" &&
+        tokens[start + 2]?.type === "string" && tokens[start + 3]?.value === "]") {
+      member = tokens[start + 2].value;
+      next = start + 4;
+    } else {
+      return undefined;
+    }
+
+    if (["window", "globalThis", "self"].includes(base.value) && member === "fetch") {
+      return { api: "fetch", next };
+    }
+    if (base.value === "navigator" && member === "sendBeacon") {
+      return { api: "sendBeacon", next };
+    }
+    // XMLHttpRequest.open is an instance method; its stable HTTP-method/url
+    // signature is checked again at the call site before a URL is recorded.
+    if (member === "open") return { api: "open", next };
+    return undefined;
+  }
+
+  function apiFromRhs(start) {
+    const token = tokens[start];
+    if (token?.type !== "identifier") return undefined;
+    if (directApis.has(token.value)) return { api: token.value, next: start + 1 };
+    const alias = functionAliases.get(token.value);
+    if (alias) return { api: alias, next: start + 1 };
+    return memberApiAt(start);
+  }
+
+  // A small fixed-point pass resolves aliases declared in either order and
+  // bounded alias chains. Dynamic assignments and destructuring are purposely
+  // not guessed; the verifier remains a static, fail-closed dependency audit.
+  for (let pass = 0; pass < 8; pass++) {
+    let changed = false;
+    for (let index = 0; index < tokens.length - 3; index++) {
+      if (!["const", "let", "var"].includes(tokens[index]?.value) ||
+          tokens[index + 1]?.type !== "identifier" ||
+          tokens[index + 2]?.value !== "=") continue;
+      const name = tokens[index + 1].value;
+      const resolved = apiFromRhs(index + 3);
+      if (resolved && functionAliases.get(name) !== resolved.api) {
+        functionAliases.set(name, resolved.api);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index];
 
@@ -438,6 +499,23 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
           tokens[openIndex + 2]?.value === ",") {
         const value = staticUrlArgument(openIndex + 2);
         if (value !== undefined) urls.push(value);
+      }
+    }
+
+    const aliasApi = token.type === "identifier" ? functionAliases.get(token.value) : undefined;
+    if (aliasApi) {
+      const openIndex = callOpenAfter(index);
+      if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
+        auditCall(openIndex);
+      } else if (aliasApi === "open" && openIndex >= 0 &&
+          tokens[openIndex + 1]?.type === "string" &&
+          /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/i.test(tokens[openIndex + 1].value) &&
+          tokens[openIndex + 2]?.value === ",") {
+        const value = staticUrlArgument(openIndex + 2);
+        if (value !== undefined) urls.push(value);
+      } else if (["WebSocket", "EventSource"].includes(aliasApi) &&
+          tokens[index - 1]?.value === "new") {
+        auditCall(openIndex);
       }
     }
   }
