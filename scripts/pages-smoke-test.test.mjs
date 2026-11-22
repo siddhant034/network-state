@@ -1083,3 +1083,46 @@ test("rejects third-party static template fetch before contacting the host", asy
   );
   assert.equal(requests.some((url) => url.includes("tracker.example")), false);
 });
+
+
+test("audits statically aliased network APIs and bounded alias chains", () => {
+  const source = [
+    "const request = fetch;",
+    "const chainedRequest = request;",
+    'chainedRequest("https://tracker.example/fetch");',
+    "const directRequest = window.fetch;",
+    'directRequest("https://tracker.example/window");',
+    "const beacon = navigator.sendBeacon;",
+    'beacon("https://tracker.example/beacon", payload);',
+    "const openRequest = xhr.open;",
+    'openRequest("GET", "https://tracker.example/xhr");',
+    "const Socket = WebSocket;",
+    'new Socket("wss://tracker.example/socket");',
+  ].join("\\n");
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://tracker.example/fetch",
+    "https://tracker.example/window",
+    "https://tracker.example/beacon",
+    "https://tracker.example/xhr",
+    "wss://tracker.example/socket",
+  ]);
+});
+
+test("rejects an aliased third-party fetch before contacting the host", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('const request = fetch; request("https://tracker.example/aliased");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
