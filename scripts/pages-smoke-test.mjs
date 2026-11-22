@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
+import { decodeHtmlCharacterReferences, extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
 
 const HTML_LIMIT = 1024 * 1024;
 const ASSET_LIMIT = 10 * 1024 * 1024;
@@ -75,23 +75,11 @@ export function getDocumentBaseUrl(html, pageUrl) {
 }
 
 function decodeHtmlAttribute(value) {
-  return value.replace(/&(#(?:x[0-9a-f]+|[0-9]+)|amp|quot|apos|lt|gt);/gi, (entity, token) => {
-    const normalized = token.toLowerCase();
-    if (normalized === "amp") return "&";
-    if (normalized === "quot") return '"';
-    if (normalized === "apos") return "'";
-    if (normalized === "lt") return "<";
-    if (normalized === "gt") return ">";
-    const numeric = normalized.startsWith("#x")
-      ? Number.parseInt(normalized.slice(2), 16)
-      : Number.parseInt(normalized.slice(1), 10);
-    return Number.isInteger(numeric) && numeric > 0 && numeric <= 0x10ffff &&
-      !(numeric >= 0xd800 && numeric <= 0xdfff)
-      ? String.fromCodePoint(numeric)
-      : "\uFFFD";
-  });
+  // HTML decodes character references in URL-bearing attributes before the
+  // browser resolves them. Reuse the event-handler decoder so entity-encoded
+  // schemes and host separators cannot evade the origin checks.
+  return decodeHtmlCharacterReferences(value);
 }
-
 export function extractInlineCss(html) {
   const styles = [];
   for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
