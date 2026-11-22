@@ -7,21 +7,19 @@ function readString(source, start) {
   while (cursor < source.length) {
     const character = source[cursor++];
     if (character === quote) return { value, next: cursor };
-    if (character === "\\r" || character === "\\n") {
-      throw new Error("Unterminated JavaScript string");
-    }
-    if (character !== "\\\\") {
+    if (character === "\r" || character === "\n") throw new Error("Unterminated JavaScript string");
+    if (character !== "\\") {
       value += character;
       continue;
     }
     if (cursor >= source.length) throw new Error("Unterminated JavaScript escape");
     const escaped = source[cursor++];
-    if (escaped === "\\n") continue;
-    if (escaped === "\\r") {
-      if (source[cursor] === "\\n") cursor++;
+    if (escaped === "\n") continue;
+    if (escaped === "\r") {
+      if (source[cursor] === "\n") cursor++;
       continue;
     }
-    const simple = { n: "\\n", r: "\\r", t: "\\t", b: "\\b", f: "\\f", v: "\\v", "0": "\\0" };
+    const simple = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f", v: "\v", "0": "\0" };
     if (Object.hasOwn(simple, escaped)) {
       value += simple[escaped];
     } else if (escaped === "x") {
@@ -56,13 +54,13 @@ function tokenize(source) {
   while (cursor < source.length) {
     if (tokens.length > MAX_TOKENS) throw new Error("JavaScript module token limit exceeded");
     const character = source[cursor];
-    if (/\\s/.test(character)) {
+    if (/\s/.test(character)) {
       cursor++;
       continue;
     }
     if (character === "/" && source[cursor + 1] === "/") {
       cursor += 2;
-      while (cursor < source.length && source[cursor] !== "\\n" && source[cursor] !== "\\r") cursor++;
+      while (cursor < source.length && source[cursor] !== "\n" && source[cursor] !== "\r") cursor++;
       continue;
     }
     if (character === "/" && source[cursor + 1] === "*") {
@@ -77,13 +75,13 @@ function tokenize(source) {
       cursor = string.next;
       continue;
     }
-    if (character === "`") {
+    if (character.charCodeAt(0) === 96) {
       const start = cursor++;
       let interpolation = false;
       while (cursor < source.length) {
-        if (source[cursor] === "\\\\") {
+        if (source[cursor] === "\\") {
           cursor += 2;
-        } else if (source[cursor] === "`") {
+        } else if (source.charCodeAt(cursor) === 96) {
           cursor++;
           break;
         } else {
@@ -91,9 +89,9 @@ function tokenize(source) {
           cursor++;
         }
       }
-      if (source[cursor - 1] !== "`") throw new Error("Unterminated JavaScript template literal");
+      if (source.charCodeAt(cursor - 1) !== 96) throw new Error("Unterminated JavaScript template literal");
       const raw = source.slice(start, cursor);
-      if (interpolation && /\\bimport\\s*\\(/.test(raw)) {
+      if (interpolation && /\bimport\s*\(/.test(raw)) {
         throw new Error("Cannot audit dynamic import inside a template literal");
       }
       tokens.push({ type: "template", value: raw });
@@ -134,12 +132,8 @@ export function extractJavaScriptDependencies(source) {
       if (next?.value === ".") continue; // import.meta
       if (next?.value === "(") {
         const specifier = tokens[index + 2];
-        if (specifier?.type !== "string") {
-          throw new Error("Cannot audit non-literal JavaScript dynamic import");
-        }
-        if (tokens[index + 3]?.value !== ")") {
-          throw new Error("Cannot audit JavaScript dynamic import options");
-        }
+        if (specifier?.type !== "string") throw new Error("Cannot audit non-literal JavaScript dynamic import");
+        if (tokens[index + 3]?.value !== ")") throw new Error("Cannot audit JavaScript dynamic import options");
         modules.push(specifier.value);
         index += 3;
         continue;
@@ -178,14 +172,14 @@ export function extractJavaScriptDependencies(source) {
 
 export function extractInlineJavaScript(html) {
   const scripts = [];
-  for (const match of html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script\\s*>/gi)) {
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
     if (getAttribute(match[1], "src") === undefined) scripts.push(match[2]);
   }
   return scripts;
 }
 
 function getAttribute(attributes, name) {
-  const pattern = new RegExp("(?:^|\\\\s)" + name + "\\\\s*=\\\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\\\s>]+))", "i");
+  const pattern = new RegExp("(?:^|\\s)" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i");
   const match = attributes.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
