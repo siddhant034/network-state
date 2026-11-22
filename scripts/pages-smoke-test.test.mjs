@@ -20,6 +20,24 @@ test("extracts JS and CSS assets relative to the published page", () => {
   ]);
 });
 
+test("decodes HTML character references in resource URL attributes", () => {
+  const document =
+    '<script src="https&colon;&sol;&sol;tracker.example&sol;bundle.js"></script>' +
+    '<link rel="stylesheet" href="https&colon;&sol;&sol;tracker.example&sol;site.css">';
+  assert.deepEqual(
+    extractAssets(document, new URL(origin + "/")).map((asset) => asset.href),
+    ["https://tracker.example/bundle.js", "https://tracker.example/site.css"],
+  );
+
+  const responsive = '<img src="https&colon;&sol;&sol;tracker.example&sol;image.png">' +
+    '<head><base href="https&colon;&sol;&sol;tracker.example&sol;assets&sol;"></head>' +
+    '<img src="relative.png">';
+  assert.deepEqual(
+    extractResourceUrls(responsive, new URL(origin + "/")).map((url) => url.href),
+    ["https://tracker.example/image.png", "https://tracker.example/assets/relative.png"],
+  );
+});
+
 test("resolves assets against the first document base URL", () => {
   const document = '<head><base href="/app/"><base href="https://ignored.example/"></head>' +
     '<script src = assets/main.js></script><link rel="stylesheet" href=style.css>';
@@ -108,6 +126,25 @@ test("verifies page and same-origin non-empty JS/CSS assets", async () => {
   const result = await verifyPublishedSite(origin + "/", fetchImpl);
   assert.equal(result.assetCount, 2);
   assert.equal(calls.length, 3);
+});
+
+test("rejects entity-encoded third-party entry assets before fetching them", async () => {
+  const unsafeHtml = html.replace(
+    'src="/assets/app.js"',
+    'src="https&colon;&sol;&sol;tracker.example&sol;app.js"',
+  );
+  const requests = [];
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      requests.push(href);
+      if (href === origin + "/") return response(unsafeHtml, href);
+      if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+      throw new Error("unexpected request: " + href);
+    }),
+    /Published resource redirected to an unexpected origin/,
+  );
+  assert.deepEqual(requests, [origin + "/"]);
 });
 
 test("rejects a published page redirecting off origin", async () => {
