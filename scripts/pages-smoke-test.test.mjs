@@ -1127,7 +1127,7 @@ test("audits statically aliased network APIs and bounded alias chains", () => {
     "const alias8 = alias9;",
     "const alias9 = fetch;",
     'alias0("https://tracker.example/deep-alias");',
-  ].join("\\n");
+  ].join("\n");
   assert.throws(() => extractJavaScriptNetworkUrls(deepAlias), /alias depth exceeds 8/);
 });
 
