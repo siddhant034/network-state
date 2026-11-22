@@ -1098,13 +1098,22 @@ test("audits statically aliased network APIs and bounded alias chains", () => {
     'openRequest("GET", "https://tracker.example/xhr");',
     "const Socket = WebSocket;",
     'new Socket("wss://tracker.example/socket");',
-  ].join("\\n");
+    "const { fetch: destructuredRequest } = globalThis;",
+    'destructuredRequest("https://tracker.example/destructured");',
+    "const { sendBeacon: destructuredBeacon } = navigator;",
+    'destructuredBeacon("https://tracker.example/destructured-beacon", payload);',
+    "const { WebSocket: DestructuredSocket } = window;",
+    'new DestructuredSocket("wss://tracker.example/destructured-socket");',
+  ].join("\n");
   assert.deepEqual(extractJavaScriptNetworkUrls(source), [
     "https://tracker.example/fetch",
     "https://tracker.example/window",
     "https://tracker.example/beacon",
     "https://tracker.example/xhr",
     "wss://tracker.example/socket",
+    "https://tracker.example/destructured",
+    "https://tracker.example/destructured-beacon",
+    "wss://tracker.example/destructured-socket",
   ]);
 });
 
