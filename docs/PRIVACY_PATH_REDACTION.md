@@ -6,7 +6,8 @@ Network State removes query strings, fragments, and embedded credentials from di
 - JWT-shaped path segments.
 - Email-address-shaped path segments, including percent-encoded `@` and other encoded characters.
 - Phone-number-shaped segments containing 7–15 digits, including common international prefixes and separators.
+- UUID-shaped path segments, including uppercase and brace-wrapped forms.
 
-Email and phone-shaped values are redacted even when the route does not use an explicit sensitive label, because account identifiers and contact details are sometimes embedded directly in resource paths. To avoid masking ordinary date-like IDs, plain digit-only segments are considered phone-like only at 10 or more digits; shorter values require a phone prefix or common formatting separators.
+Email, phone, and UUID-shaped values are redacted even when the route does not use an explicit sensitive label, because account, device, transaction, and contact identifiers are sometimes embedded directly in resource paths. To avoid masking ordinary date-like IDs, plain digit-only segments are considered phone-like only at 10 or more digits; shorter values require a phone prefix or common formatting separators.
 
 This is a best-effort safeguard, not a guarantee of anonymization. Arbitrary user IDs, application-specific identifiers, and phone numbers in unrecognized formats can still appear in a path. Some formatted or long numeric identifiers may also resemble phone numbers and be redacted. Path inclusion remains opt-in; keep it disabled when paths are not needed for diagnosis.
