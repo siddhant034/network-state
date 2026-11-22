@@ -1195,6 +1195,54 @@ test("rejects a post-declaration aliased third-party fetch before contacting the
 });
 
 
+test("audits fetch call and apply invocations with literal URLs", () => {
+  const source = [
+    'fetch.call(window, "https://tracker.example/call");',
+    'fetch.apply(null, ["https://tracker.example/apply"]);',
+    'fetch["call"](window, "https://tracker.example/computed-call");',
+    'fetch.call?.(window, "https://tracker.example/optional-call");',
+    "const request = fetch;",
+    'request.call(null, "https://tracker.example/alias-call");',
+    'request.apply(null, ["https://tracker.example/alias-apply"]);',
+    'fetch.call(window, `https://tracker.example/template-call/${id}`);',
+  ].join("\\n");
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://tracker.example/call",
+    "https://tracker.example/apply",
+    "https://tracker.example/computed-call",
+    "https://tracker.example/optional-call",
+    "https://tracker.example/alias-call",
+    "https://tracker.example/alias-apply",
+    "https://tracker.example/template-call/",
+  ]);
+});
+
+test("fails closed for dynamic fetch apply argument arrays", () => {
+  assert.throws(
+    () => extractJavaScriptNetworkUrls("fetch.apply(null, args);"),
+    /Cannot audit dynamic network API apply arguments/,
+  );
+});
+
+test("rejects a fetch.call third-party URL before contacting the host", async () => {
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const href = String(url);
+    requests.push(href);
+    if (href === origin + "/") return response(html, href);
+    if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+    if (href === origin + "/assets/app.js") {
+      return response('fetch.call(window, "https://tracker.example/call");', href, 200, "text/javascript");
+    }
+    throw new Error("unexpected request: " + href);
+  };
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", fetchImpl),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
+
 test("audits statically bound fetch URL aliases", () => {
   const source = [
     'const request = fetch.bind(window, "https://tracker.example/bound");',
