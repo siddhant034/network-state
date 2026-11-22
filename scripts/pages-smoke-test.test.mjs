@@ -1205,7 +1205,7 @@ test("audits fetch call and apply invocations with literal URLs", () => {
     'request.call(null, "https://tracker.example/alias-call");',
     'request.apply(null, ["https://tracker.example/alias-apply"]);',
     'fetch.call(window, `https://tracker.example/template-call/${id}`);',
-  ].join("\\n");
+  ].join("\n");
   assert.deepEqual(extractJavaScriptNetworkUrls(source), [
     "https://tracker.example/call",
     "https://tracker.example/apply",
