@@ -1,5 +1,5 @@
 import test from "node:test";
-import { extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
+import { decodeHtmlCharacterReferences, extractInlineEventHandlers, extractInlineJavaScript, extractJavaScriptDependencies, extractJavaScriptNetworkUrls } from "./javascript-module-dependencies.mjs";
 import assert from "node:assert/strict";
 import { extractAssets, extractCssImports, extractCssResourceUrls, extractInlineCss, extractResourceUrls, assertSameOrigin, verifyPublishedSite } from "./pages-smoke-test.mjs";
 
@@ -854,6 +854,36 @@ test("allows same-origin literal network calls and leaves user-configured target
   assert.equal(result.assetCount, 2);
 });
 
+
+
+test("decodes HTML character references before scanning inline handler JavaScript", () => {
+  const handler = extractInlineEventHandlers(
+    '<button onclick="&#x66;etch(&#x22;https&colon;&sol;&sol;tracker.example&#x2f;pixel&#x22;)">x</button>',
+  )[0];
+  assert.equal(handler, 'fetch("https://tracker.example/pixel")');
+  assert.deepEqual(extractJavaScriptNetworkUrls(handler), ["https://tracker.example/pixel"]);
+  assert.equal(decodeHtmlCharacterReferences("&#0; &#xD800; &#x110000;"), "\uFFFD \uFFFD \uFFFD");
+});
+
+test("rejects entity-encoded third-party event-handler requests before contacting them", async () => {
+  const unsafeHtml = html.replace(
+    "</body>",
+    '<img onerror="&#x66;etch(&#x22;https&colon;&sol;&sol;tracker.example&#x2f;error&#x22;)"></body>',
+  );
+  const requests = [];
+  await assert.rejects(
+    verifyPublishedSite(origin + "/", async (url) => {
+      const href = String(url);
+      requests.push(href);
+      if (href === origin + "/") return response(unsafeHtml, href);
+      if (href === origin + "/assets/app.css") return response("body{}", href, 200, "text/css");
+      if (href === origin + "/assets/app.js") return response("console.log(1)", href, 200, "text/javascript");
+      throw new Error("unexpected request: " + href);
+    }),
+    /Published JavaScript request redirected to an unexpected origin/,
+  );
+  assert.equal(requests.some((url) => url.includes("tracker.example")), false);
+});
 
 test("event handler scanner preserves quoted greater-than signs and full attribute values", () => {
   const document = '<div title="> is data" onclick="fetch(\'https://tracker.example/pixel?x=>\')">x</div>';
