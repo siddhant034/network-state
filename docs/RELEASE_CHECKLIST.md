@@ -14,6 +14,10 @@ This checklist is intentionally separate from feature completion. A passing CI r
 - CI cancels superseded runs for the same pull request or branch so stale browser matrices do not consume runners after newer code is pushed.
 - Always verify the latest commit's run; a cancelled older run is not evidence that the current head passed.
 
+## Workflow action pin enforcement
+
+CI runs a dependency-free verifier over every YAML workflow under `.github/workflows`. Third-party actions must use a full 40-character commit SHA; local composite actions (`./...`) are allowed. The verifier and its tests run in pull-request CI and again before the Pages build. This prevents a reviewed workflow from silently reverting to mutable action tags.
+
 ## 2. Reproducible dependencies and security
 
 - [ ] Integrate the committed npm lockfile and `npm ci` workflows from PR #14 into `main`.
