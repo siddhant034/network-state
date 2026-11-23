@@ -21,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function validateImportedConfig(value: unknown): SavedNetworkLabConfig | null {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string" ||
-      !Array.isArray(value.endpoints) || !isRecord(value.options) ||
+      !Array.isArray(value.endpoints) || !value.endpoints.every((endpoint) => typeof endpoint === "string") || !isRecord(value.options) ||
       typeof value.createdAt !== "number" || typeof value.updatedAt !== "number" ||
       !Number.isFinite(value.createdAt) || !Number.isFinite(value.updatedAt) ||
       value.createdAt < 0 || value.updatedAt < value.createdAt) return null;
