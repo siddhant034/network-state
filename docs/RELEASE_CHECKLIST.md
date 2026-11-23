@@ -18,6 +18,11 @@ This checklist is intentionally separate from feature completion. A passing CI r
 
 CI runs a dependency-free verifier over every YAML workflow under `.github/workflows`. Third-party actions must use a full 40-character commit SHA; local composite actions (`./...`) are allowed. The verifier and its tests run in pull-request CI and again before the Pages build. This prevents a reviewed workflow from silently reverting to mutable action tags.
 
+
+## Least-privilege workflow permissions
+
+CI audits workflow token permissions and rejects broad presets, workflow-level grants beyond `contents: read`, and `pull_request_target`. Job-level permission mappings are checked as complete sets: read-only `contents: read` is permitted for build jobs, while write access is limited to the Pages deploy job's exact `pages: write` and `id-token: write` grants. Duplicate and unsupported entries fail the audit. The policy scanner and its tests run in PR CI and before the Pages build; unsupported syntax must fail closed rather than be skipped.
+
 ## 2. Reproducible dependencies and security
 
 - [ ] Integrate the committed npm lockfile and `npm ci` workflows from PR #14 into `main`.
