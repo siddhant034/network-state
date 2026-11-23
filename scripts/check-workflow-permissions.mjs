@@ -50,20 +50,20 @@ export function assertWorkflowPermissions(source, file = "workflow") {
   let unsafeTrigger = -1;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    const on = line.match(/^(?:on|"on"|'on')\\s*:\\s*(.*)$/);
+    const on = line.match(/^(?:on|"on"|'on')\s*:\s*(.*)$/);
     if (on) {
       inOnBlock = true;
-      if (/\\bpull_request_target\\b/.test(on[1])) {
+      if (/\bpull_request_target\b/.test(on[1])) {
         unsafeTrigger = i;
         break;
       }
       continue;
     }
-    if (inOnBlock && /^\\S/.test(line)) {
+    if (inOnBlock && /^\S/.test(line)) {
       inOnBlock = false;
       continue;
     }
-    if (inOnBlock && /\\bpull_request_target\\b/.test(line)) {
+    if (inOnBlock && /\bpull_request_target\b/.test(line)) {
       unsafeTrigger = i;
       break;
     }
