@@ -3,14 +3,14 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WORKFLOWS_DIR = join(fileURLToPath(new URL("..", import.meta.url)), ".github", "workflows");
-const IMMUTABLE_ACTION = /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/i;
+const IMMUTABLE_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/i;
 
 export function findActionReferences(workflow) {
   const references = [];
-  for (const [index, line] of workflow.split(/\\r?\\n/).entries()) {
+  for (const [index, line] of workflow.split(/\r?\n/).entries()) {
     // Step mappings commonly begin with "- uses:", while named steps put
     // "uses:" on a following indented mapping line. Accept both forms.
-    const match = line.match(/^\\s*(?:-\\s*)?uses:\\s*(?:"([^"]+)"|'([^']+)'|([^\\s#]+))(?:\\s+#.*)?\\s*$/);
+    const match = line.match(/^\s*(?:-\s*)?uses:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))(?:\s+#.*)?\s*$/);
     if (match) {
       const reference = match[1] ?? match[2] ?? match[3];
       references.push({ reference, line: index + 1 });
@@ -20,7 +20,7 @@ export function findActionReferences(workflow) {
 }
 
 function isLocalAction(reference) {
-  if (!reference.startsWith("./") || reference.includes("\\\\") || reference.includes("@") || reference.includes("#")) {
+  if (!reference.startsWith("./") || reference.includes("\\") || reference.includes("@") || reference.includes("#")) {
     return false;
   }
   const segments = reference.split("/");
@@ -33,8 +33,8 @@ export function assertImmutableActionPins(workflow, file = "workflow") {
     !isLocalAction(reference) && !IMMUTABLE_ACTION.test(reference),
   );
   if (invalid.length) {
-    const details = invalid.map(({ reference, line }) => `${file}:${line} uses mutable or invalid action ref "${reference}"`);
-    throw new Error(details.join("\\n"));
+    const details = invalid.map(({ reference, line }) => file + ":" + line + ' uses mutable or invalid action ref "' + reference + '"');
+    throw new Error(details.join("\n"));
   }
   return references.length;
 }
@@ -45,7 +45,7 @@ async function workflowFiles(directory) {
   for (const entry of entries) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await workflowFiles(path));
-    else if (/\\.ya?ml$/i.test(entry.name)) files.push(path);
+    else if (/\.ya?ml$/i.test(entry.name)) files.push(path);
   }
   return files;
 }
@@ -64,7 +64,7 @@ export async function verifyWorkflowDirectory(directory = WORKFLOWS_DIR) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
     const result = await verifyWorkflowDirectory();
-    console.log(`Workflow pin check passed: ${result.actionCount} immutable action references across ${result.workflowCount} workflow files`);
+    console.log("Workflow pin check passed: " + result.actionCount + " immutable action references across " + result.workflowCount + " workflow files");
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
