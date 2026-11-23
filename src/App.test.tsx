@@ -24,12 +24,12 @@ describe("Network State dashboard reachability controls", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
-
-  it("exports a diagnostics snapshot without persisting it in the app", async () => {
+  it("downloads a snapshot through a local Blob URL without persisting it in the app", async () => {
     const createObjectURL = vi.fn(() => "blob:diagnostics");
     const revokeObjectURL = vi.fn();
     const URLStub = Object.assign(class extends URL {}, { createObjectURL, revokeObjectURL });
