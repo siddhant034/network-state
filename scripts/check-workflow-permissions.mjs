@@ -43,25 +43,39 @@ function parsePermissionBlock(lines, start, file, scope) {
 
 export function assertWorkflowPermissions(source, file = "workflow") {
   const lines = source.split(/\r?\n/).map(stripComment);
-  // Inspect only the top-level "on" block. GitHub accepts event lists as
-  // block sequences as well as mappings/flow collections; the latter forms
-  // must not bypass the pull_request_target guard.
+  // Inspect only the top-level "on" block. This dependency-free audit accepts
+  // explicit event mappings, block event lists, and simple flow collections.
+  // Ambiguous YAML is rejected rather than interpreted optimistically.
   let inOnBlock = false;
+  let onBlockCount = 0;
+  let triggerEventCount = 0;
   let unsafeTrigger = -1;
   let unsupportedTriggerYaml = -1;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     const on = line.match(/^(?:on|"on"|'on')\s*:\s*(.*)$/);
     if (on) {
+      onBlockCount += 1;
       inOnBlock = true;
-      if (/(?:^|[\s:[,{])(?:&|\*)[A-Za-z0-9_-]+(?=$|[\s,\]}])/.test(on[1]) ||
-          /(?:^|[\s,{])<<\s*:/.test(on[1])) {
+      const value = on[1].trim();
+      if (/(?:^|[\s:[,{])(?:&|\*)[A-Za-z0-9_-]+(?=$|[\s,\]}])/.test(value) ||
+          /(?:^|[\s,{])<<\s*:/.test(value)) {
         unsupportedTriggerYaml = i;
         break;
       }
-      if (/\bpull_request_target\b/.test(on[1])) {
+      if (/\bpull_request_target\b/.test(value)) {
         unsafeTrigger = i;
         break;
+      }
+      if (value) {
+        if (value.startsWith("[") && value.endsWith("]")) {
+          triggerEventCount += value.slice(1, -1).split(",").filter((event) => event.trim()).length;
+        } else if (value.startsWith("{") && value.endsWith("}")) {
+          triggerEventCount += (value.slice(1, -1).match(/(?:^|,)\s*(?:'[A-Za-z0-9_-]+'|"[A-Za-z0-9_-]+"|[A-Za-z0-9_-]+)\s*:/g) || []).length;
+        } else {
+          unsupportedTriggerYaml = i;
+          break;
+        }
       }
       continue;
     }
@@ -78,13 +92,20 @@ export function assertWorkflowPermissions(source, file = "workflow") {
       unsafeTrigger = i;
       break;
     }
+    if (inOnBlock && /^ {2}(?:'[A-Za-z0-9_-]+'|"[A-Za-z0-9_-]+"|[A-Za-z0-9_-]+)\s*:/.test(line)) {
+      triggerEventCount += 1;
+    } else if (inOnBlock && /^ {2}-\s*[A-Za-z0-9_-]+\s*$/.test(line)) {
+      triggerEventCount += 1;
+    }
   }
   if (unsupportedTriggerYaml !== -1) {
-    throw new Error(file + ":" + (unsupportedTriggerYaml + 1) + " uses YAML anchors, aliases, or merge keys in the on block; use explicit event syntax");
+    throw new Error(file + ":" + (unsupportedTriggerYaml + 1) + " uses unsupported or aliased trigger YAML; use an explicit event mapping or list");
   }
   if (unsafeTrigger !== -1) {
     throw new Error(file + ":" + (unsafeTrigger + 1) + " uses pull_request_target; use pull_request with read-only permissions");
   }
+  if (onBlockCount !== 1) throw new Error(file + " must declare exactly one top-level on trigger block");
+  if (triggerEventCount < 1) throw new Error(file + " must declare at least one explicit workflow event");
 
   const rootPermissions = [];
   for (let i = 0; i < lines.length; i += 1) {
