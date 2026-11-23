@@ -72,3 +72,4 @@
 .network-lab-delete-confirmation p{margin:7px 0 10px;color:#b99a9e;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
 .network-lab-delete-actions{display:flex;flex-wrap:wrap;gap:8px}
 .network-lab-delete-actions .network-lab-config-button{flex:0 1 auto}
+.network-lab-delete-confirmation .network-lab-config-button:focus-visible{outline:2px solid #f0a6a6;outline-offset:3px}
