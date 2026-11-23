@@ -573,48 +573,48 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   // Resolve aliases against lexical bindings rather than bare minified names.
   // Minifiers commonly reuse short names in unrelated functions; a file-wide
   // map can oscillate between those bindings and fail a valid production build.
-  const scopeParents = new Map([[0, null]]);
-  const tokenScopes = [];
-  const scopeStack = [0];
-  let nextScope = 1;
+  const networkScopeParents = new Map([[0, null]]);
+  const networkTokenScopes = [];
+  const networkScopeStack = [0];
+  let networkNextScope = 1;
   for (let i = 0; i < tokens.length; i++) {
-    if (tokens[i]?.value === "}") if (scopeStack.length > 1) scopeStack.pop();
-    tokenScopes[i] = scopeStack[scopeStack.length - 1];
+    if (tokens[i]?.value === "}") if (networkScopeStack.length > 1) networkScopeStack.pop();
+    networkTokenScopes[i] = networkScopeStack[networkScopeStack.length - 1];
     if (tokens[i]?.value === "{") {
-      const child = nextScope++;
-      scopeParents.set(child, scopeStack[scopeStack.length - 1]);
-      scopeStack.push(child);
+      const child = networkNextScope++;
+      networkScopeParents.set(child, networkScopeStack[networkScopeStack.length - 1]);
+      networkScopeStack.push(child);
     }
   }
 
-  const declarations = new Map();
-  const bindingKey = (scope, name) => scope + ":" + name;
-  function namesIn(scope) {
-    if (!declarations.has(scope)) declarations.set(scope, new Set());
-    return declarations.get(scope);
+  const networkDeclarations = new Map();
+  const networkBindingKey = (scope, name) => scope + ":" + name;
+  function networkNamesIn(scope) {
+    if (!networkDeclarations.has(scope)) networkDeclarations.set(scope, new Set());
+    return networkDeclarations.get(scope);
   }
   for (let i = 0; i < tokens.length; i++) {
     if (["const", "let", "var"].includes(tokens[i]?.value) && tokens[i + 1]?.type === "identifier") {
-      namesIn(tokenScopes[i]).add(tokens[i + 1].value);
+      networkNamesIn(networkTokenScopes[i]).add(tokens[i + 1].value);
     }
   }
-  function bindingScope(name, scope) {
-    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
-      if (namesIn(current).has(name)) return current;
+  function networkBindingScope(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = networkScopeParents.get(current)) {
+      if (networkNamesIn(current).has(name)) return current;
     }
     return scope;
   }
-  function aliasAt(name, scope) {
-    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
-      if (namesIn(current).has(name)) return functionAliases.get(bindingKey(current, name));
+  function networkAliasAt(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = networkScopeParents.get(current)) {
+      if (networkNamesIn(current).has(name)) return functionAliases.get(networkBindingKey(current, name));
     }
-    return functionAliases.get(bindingKey(scope, name));
+    return functionAliases.get(networkBindingKey(scope, name));
   }
-  function boundUrlAt(name, scope) {
-    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
-      if (namesIn(current).has(name)) return boundFetchUrls.get(bindingKey(current, name));
+  function networkBoundUrlAt(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = networkScopeParents.get(current)) {
+      if (networkNamesIn(current).has(name)) return boundFetchUrls.get(networkBindingKey(current, name));
     }
-    return boundFetchUrls.get(bindingKey(scope, name));
+    return boundFetchUrls.get(networkBindingKey(scope, name));
   }
 
   function memberApiAt(start) {
@@ -642,8 +642,8 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     let resolved;
     if (directApis.has(token.value)) resolved = { api: token.value, next: start + 1 };
     else {
-      const alias = aliasAt(token.value, tokenScopes[start]);
-      if (alias) resolved = { api: alias, next: start + 1, boundUrl: boundUrlAt(token.value, tokenScopes[start]) };
+      const alias = networkAliasAt(token.value, networkTokenScopes[start]);
+      if (alias) resolved = { api: alias, next: start + 1, boundUrl: networkBoundUrlAt(token.value, networkTokenScopes[start]) };
       else resolved = memberApiAt(start);
     }
     if (!resolved) return undefined;
@@ -663,7 +663,7 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
     const assignAlias = (name, scope, resolved) => {
-      const key = bindingKey(scope, name);
+      const key = networkBindingKey(scope, name);
       if (!resolved) {
         if (functionAliases.has(key)) {
           functionAliases.delete(key);
@@ -695,12 +695,12 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         tokens[index - 2]?.value !== ".";
       if (assignmentTarget) {
         const name = tokens[index - 1].value;
-        const scope = bindingScope(name, tokenScopes[index - 1]);
-        if (namesIn(scope).has(name)) assignAlias(name, scope, apiFromRhs(index + 1));
+        const scope = networkBindingScope(name, networkTokenScopes[index - 1]);
+        if (networkNamesIn(scope).has(name)) assignAlias(name, scope, apiFromRhs(index + 1));
       }
 
       if (!["const", "let", "var"].includes(tokens[index]?.value)) continue;
-      const declarationScope = tokenScopes[index];
+      const declarationScope = networkTokenScopes[index];
       if (tokens[index + 1]?.value === "{") {
         let close = index + 2;
         while (close < tokens.length && close - index <= 32 && tokens[close]?.value !== "}") close++;
