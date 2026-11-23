@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Activity, BookmarkPlus, FlaskConical, FolderOpen, Play, Square, Trash2 } from "lucide-react";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 import { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
+import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
+import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
+import "./NetworkLabConfigTransfer.css";
 import "./NetworkTestLab.css";
 
 const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
@@ -147,6 +150,17 @@ export function NetworkTestLab() {
     setMessage("All saved configs cleared from this browser.");
   };
 
+  const handleImportConfigs = (imported: SavedNetworkLabConfig[]) => {
+    const next = mergeImportedNetworkLabConfigs(savedConfigs, imported);
+    const storage = getLocalStorage();
+    if (!storage || !persistNetworkLabConfigs(next, storage)) {
+      throw new Error("Could not save imported configs to this browser's local storage.");
+    }
+    setSavedConfigs(next);
+    setSelectedConfigId(next[0]?.id ?? "");
+    setError("");
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (running) return;
@@ -229,6 +243,7 @@ export function NetworkTestLab() {
           <button type="button" className="network-lab-config-button muted" onClick={handleClearConfigs} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
         <p className="network-lab-config-privacy">Saved configs stay in this browser's local storage. They include full endpoint URLs (including paths and query strings) so they can be replayed. Do not save URLs containing secrets; delete configs on shared devices.</p>
+        <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} />
       </div>
 
       <form className="network-lab-form" onSubmit={(event) => { void handleSubmit(event); }}>
