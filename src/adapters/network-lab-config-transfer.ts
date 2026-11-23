@@ -31,7 +31,7 @@ function validateImportedConfig(value: unknown): SavedNetworkLabConfig | null {
       id: value.id,
       name: value.name,
       endpoints: value.endpoints as string[],
-      options: value.options as SavedNetworkLabConfig["options"]
+      options: value.options as unknown as SavedNetworkLabConfig["options"]
     }, value.updatedAt)[0];
     return { ...validated, createdAt: value.createdAt, updatedAt: value.updatedAt };
   } catch {
