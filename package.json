@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:workflow-pins": "node --test scripts/check-workflow-pins.test.mjs"
+    "test:workflow-pins": "node --test scripts/check-workflow-pins.test.mjs",
+    "test:workflow-permissions": "node --test scripts/check-workflow-permissions.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
