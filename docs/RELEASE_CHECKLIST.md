@@ -68,3 +68,9 @@ Do not announce a public demo until the deployment URL has been opened and verif
 ## Pre-deployment artifact check
 
 CI runs the same resource-origin and static network-dependency audit against the generated `dist` artifact before the dependency audit and browser matrix finish. This catches broken project-base asset paths, missing build output, and unexpected external resource references before deployment. The Pages workflow also runs the check before uploading its deployment artifact. The post-deployment smoke test remains required.
+
+## GitHub Actions supply-chain maintenance
+
+- Workflow actions are pinned to full commit SHAs, with the upstream release tag retained in a comment for reviewability.
+- When updating an action, verify the release tag in the action's official repository, resolve it to its commit SHA, review the upstream changelog and permissions, then update the SHA and version comment together.
+- Do not replace a SHA pin with a mutable version tag. Run the complete CI and Pages artifact preflight after every action update.
