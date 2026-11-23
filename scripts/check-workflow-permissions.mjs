@@ -73,7 +73,7 @@ export function assertWorkflowPermissions(source, file = "workflow") {
     const job = line.match(/^  ([A-Za-z0-9_-]+):\s*$/);
     if (inJobs && job) currentJob = job[1];
 
-    if (/^      permissions\s*:/.test(line)) {
+    if (/^    permissions\s*:/.test(line)) {
       if (currentJob !== "deploy") {
         throw new Error(file + ":" + (i + 1) + " job-level permission escalation is only allowed in the Pages deploy job");
       }
@@ -81,8 +81,8 @@ export function assertWorkflowPermissions(source, file = "workflow") {
         const permissionLine = lines[j];
         if (!permissionLine.trim()) continue;
         const indent = permissionLine.match(/^\s*/)[0].length;
-        if (indent < 8) break;
-        if (indent !== 8) continue;
+        if (indent < 6) break;
+        if (indent !== 6) continue;
         const permission = permissionLine.trim().match(/^(pages|id-token)\s*:\s*write$/);
         if (!permission) {
           throw new Error(file + ":" + (j + 1) + " Pages deploy may grant only pages: write and id-token: write");
