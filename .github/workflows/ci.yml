@@ -29,9 +29,11 @@ jobs:
       - name: Run tests
         run: npm test
       - name: Test published-site smoke verifier
-        run: node --test scripts/pages-smoke-test.test.mjs
+        run: node --test scripts/pages-smoke-test.test.mjs scripts/pages-build-smoke-test.test.mjs
       - name: Build
         run: npm run build
+      - name: Preflight the built GitHub Pages artifact
+        run: node scripts/pages-build-smoke-test.mjs dist
       - name: Capture dependency audit report
         if: always()
         run: npm audit --json > npm-audit.json || true
