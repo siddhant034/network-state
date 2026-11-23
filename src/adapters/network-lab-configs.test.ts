@@ -77,8 +77,8 @@ describe("named network lab configs", () => {
       ]
     }));
     expect(loadNetworkLabConfigs(corrupt)).toHaveLength(1);
-    expect(loadNetworkLabConfigs(memoryStorage("{broken")).toEqual([]);
-    expect(loadNetworkLabConfigs(memoryStorage(JSON.stringify({ schemaVersion: 9, configs }))).toEqual([]);
+    expect(loadNetworkLabConfigs(memoryStorage("{broken"))).toEqual([]);
+    expect(loadNetworkLabConfigs(memoryStorage(JSON.stringify({ schemaVersion: 9, configs })))).toEqual([]);
   });
 
   it("reports storage failures without throwing", () => {
