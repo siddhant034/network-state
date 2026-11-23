@@ -48,6 +48,7 @@ export function assertWorkflowPermissions(source, file = "workflow") {
   // must not bypass the pull_request_target guard.
   let inOnBlock = false;
   let unsafeTrigger = -1;
+  let unsupportedTriggerYaml = -1;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     const on = line.match(/^(?:on|"on"|'on')\s*:\s*(.*)$/);
@@ -67,6 +68,9 @@ export function assertWorkflowPermissions(source, file = "workflow") {
       unsafeTrigger = i;
       break;
     }
+  }
+  if (unsupportedTriggerYaml !== -1) {
+    throw new Error(file + ":" + (unsupportedTriggerYaml + 1) + " uses YAML anchors, aliases, or merge keys in the on block; use explicit event syntax");
   }
   if (unsafeTrigger !== -1) {
     throw new Error(file + ":" + (unsafeTrigger + 1) + " uses pull_request_target; use pull_request with read-only permissions");
