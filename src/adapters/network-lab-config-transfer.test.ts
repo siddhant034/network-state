@@ -31,12 +31,13 @@ describe("portable saved network lab configs", () => {
   it("rejects unsupported versions, malformed JSON, oversized files, and empty imports", () => {
     const serialized = createNetworkLabConfigExport([config("one", "One")], 200);
     expect(parseNetworkLabConfigExport("{broken").ok).toBe(false);
-    expect(parseNetworkLabConfigExport(JSON.stringify({ format: "network-state-network-lab-configs", schemaVersion: 9 })).error)
-      .toMatch(/unsupported schema/);
+    expect(parseNetworkLabConfigExport(JSON.stringify({ format: "network-state-network-lab-configs", schemaVersion: 9 })))
+      .toMatchObject({ ok: false, error: expect.stringMatching(/unsupported schema/) });
     expect(parseNetworkLabConfigExport(JSON.stringify({
       format: "network-state-network-lab-configs", schemaVersion: 1, exportedAt: 1, configs: []
-    })).error).toMatch(/incomplete/);
-    expect(parseNetworkLabConfigExport(" ".repeat(MAX_NETWORK_LAB_CONFIG_IMPORT_BYTES + 1)).error).toMatch(/1 MB/);
+    }))).toMatchObject({ ok: false, error: expect.stringMatching(/incomplete/) });
+    expect(parseNetworkLabConfigExport(" ".repeat(MAX_NETWORK_LAB_CONFIG_IMPORT_BYTES + 1)))
+      .toMatchObject({ ok: false, error: expect.stringMatching(/1 MB/) });
     expect(serialized.length).toBeGreaterThan(0);
   });
 
