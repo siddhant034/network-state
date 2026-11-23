@@ -43,6 +43,7 @@ export function NetworkTestLab() {
   const [configName, setConfigName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState("");
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
@@ -123,7 +124,7 @@ export function NetworkTestLab() {
     setMessage("Loaded config. Review its endpoints, then run the test when ready.");
   };
 
-  const handleDeleteConfig = () => {
+  const handleConfirmDeleteConfig = () => {
     if (!selectedConfigId) return;
     const next = removeNetworkLabConfig(savedConfigs, selectedConfigId);
     const storage = getLocalStorage();
@@ -134,6 +135,7 @@ export function NetworkTestLab() {
     }
     setSavedConfigs(next);
     setSelectedConfigId("");
+    setShowDeleteConfirmation(false);
     setError("");
     setMessage("Saved config deleted from this browser.");
   };
@@ -235,15 +237,25 @@ export function NetworkTestLab() {
         <div className="network-lab-config-row">
           <label className="network-lab-config-select">
             <span>Saved configs ({savedConfigs.length}/10)</span>
-            <select aria-label="Saved configs" value={selectedConfigId} onChange={(event) => setSelectedConfigId(event.target.value)} disabled={running || savedConfigs.length === 0}>
+            <select aria-label="Saved configs" value={selectedConfigId} onChange={(event) => { setSelectedConfigId(event.target.value); setShowDeleteConfirmation(false); }} disabled={running || savedConfigs.length === 0}>
               <option value="">Choose a saved config</option>
               {savedConfigs.map((config) => <option key={config.id} value={config.id}>{config.name}</option>)}
             </select>
           </label>
           <button type="button" className="network-lab-config-button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}><FolderOpen size={13} /> Load</button>
-          <button type="button" className="network-lab-config-button danger" onClick={handleDeleteConfig} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
-          <button type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(true)} disabled={running || savedConfigs.length === 0}>Clear all</button>
+          <button type="button" className="network-lab-config-button danger" onClick={() => { setShowClearConfirmation(false); setShowDeleteConfirmation(true); }} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
+          <button type="button" className="network-lab-config-button muted" onClick={() => { setShowDeleteConfirmation(false); setShowClearConfirmation(true); }} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
+        {showDeleteConfirmation && selectedConfigId && savedConfigs.some((config) => config.id === selectedConfigId) && (
+          <section className="network-lab-delete-confirmation" role="group" aria-labelledby="network-lab-delete-title">
+            <h3 id="network-lab-delete-title">Delete saved config?</h3>
+            <p><strong>{savedConfigs.find((config) => config.id === selectedConfigId)?.name}</strong> will be permanently removed from this browser. Your current form and completed results will not change.</p>
+            <div className="network-lab-delete-actions">
+              <button type="button" className="network-lab-config-button danger" onClick={handleConfirmDeleteConfig} disabled={running}>Delete saved config</button>
+              <button type="button" className="network-lab-config-button muted" onClick={() => setShowDeleteConfirmation(false)}>Cancel</button>
+            </div>
+          </section>
+        )}
         {showClearConfirmation && (
           <section className="network-lab-clear-confirmation" role="group" aria-labelledby="network-lab-clear-title">
             <h3 id="network-lab-clear-title">Clear all saved configs?</h3>
