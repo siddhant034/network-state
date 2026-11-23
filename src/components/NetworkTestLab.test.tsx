@@ -125,6 +125,14 @@ describe("NetworkTestLab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("group", { name: "Delete saved config?" })).not.toBeInTheDocument();
     expect(readSaved().configs).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Delete saved config?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveFocus();
+    expect(readSaved().configs).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
