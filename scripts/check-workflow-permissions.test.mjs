@@ -50,6 +50,15 @@ test("allows only the exact Pages deployment write grants", () => {
   assert.throws(() => assertWorkflowPermissions(pages.replace("      pages: write", "      pages: write" + newline + "      contents: write")), /may grant only contents: read, or Pages deploy's pages: write and id-token: write/);
 });
 
+test("requires explicit permissions for a Pages deploy job", () => {
+  const deployWithoutPermissions = base + `  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo deploy
+`;
+  assert.throws(() => assertWorkflowPermissions(deployWithoutPermissions), /deploy job must declare explicit Pages deployment permissions/);
+});
+
 test("rejects write permissions outside the Pages deploy job", () => {
   const elevated = base.replace("  verify:", "  verify:" + newline + "    permissions:" + newline + "      contents: write");
   assert.throws(() => assertWorkflowPermissions(elevated), /job verify may grant only contents: read/);
