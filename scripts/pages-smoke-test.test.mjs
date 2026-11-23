@@ -1372,7 +1372,7 @@ test("keeps network API aliases isolated across lexical scopes with reused names
     "  const request = () => {};",
     '  request("https://ignored.example/second");',
     "}",
-  ].join("\\n");
+  ].join("\n");
   assert.deepEqual(extractJavaScriptNetworkUrls(source), [
     "https://tracker.example/outer",
   ]);
