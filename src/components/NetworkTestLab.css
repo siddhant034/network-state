@@ -60,3 +60,9 @@
 .network-lab-config-button.muted{border-color:#34414c;background:#19232d;color:#9eacb8}
 .network-lab-config-privacy{margin:0;color:#748596;font-size:9px;line-height:1.6}
 @media(max-width:560px){.network-lab-config-row{align-items:stretch;flex-wrap:wrap}.network-lab-config-name,.network-lab-config-select{flex-basis:100%}.network-lab-config-button{flex:1}}
+
+.network-lab-clear-confirmation{padding:12px;border:1px solid #684247;border-radius:8px;background:#241b20}
+.network-lab-clear-confirmation h3{margin:0;color:#e8c4c6;font:600 12px Manrope,sans-serif}
+.network-lab-clear-confirmation p{margin:7px 0 10px;color:#b99a9e;font-size:10px;line-height:1.6}
+.network-lab-clear-actions{display:flex;flex-wrap:wrap;gap:8px}
+.network-lab-clear-actions .network-lab-config-button{flex:0 1 auto}
