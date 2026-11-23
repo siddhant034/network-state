@@ -3,25 +3,38 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WORKFLOWS_DIR = join(fileURLToPath(new URL("..", import.meta.url)), ".github", "workflows");
-const IMMUTABLE_ACTION = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/i;
+const IMMUTABLE_ACTION = /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/i;
 
 export function findActionReferences(workflow) {
   const references = [];
-  for (const [index, line] of workflow.split(/\r?\n/).entries()) {
-    const match = line.match(/^\s*uses:\s*([^\s#]+)(?:\s+#.*)?\s*$/);
-    if (match) references.push({ reference: match[1], line: index + 1 });
+  for (const [index, line] of workflow.split(/\\r?\\n/).entries()) {
+    // Step mappings commonly begin with "- uses:", while named steps put
+    // "uses:" on a following indented mapping line. Accept both forms.
+    const match = line.match(/^\\s*(?:-\\s*)?uses:\\s*(?:"([^"]+)"|'([^']+)'|([^\\s#]+))(?:\\s+#.*)?\\s*$/);
+    if (match) {
+      const reference = match[1] ?? match[2] ?? match[3];
+      references.push({ reference, line: index + 1 });
+    }
   }
   return references;
+}
+
+function isLocalAction(reference) {
+  if (!reference.startsWith("./") || reference.includes("\\\\") || reference.includes("@") || reference.includes("#")) {
+    return false;
+  }
+  const segments = reference.split("/");
+  return segments.length > 1 && segments.every((segment) => segment !== "" && segment !== "..");
 }
 
 export function assertImmutableActionPins(workflow, file = "workflow") {
   const references = findActionReferences(workflow);
   const invalid = references.filter(({ reference }) =>
-    !reference.startsWith("./") && !IMMUTABLE_ACTION.test(reference),
+    !isLocalAction(reference) && !IMMUTABLE_ACTION.test(reference),
   );
   if (invalid.length) {
     const details = invalid.map(({ reference, line }) => `${file}:${line} uses mutable or invalid action ref "${reference}"`);
-    throw new Error(details.join("\n"));
+    throw new Error(details.join("\\n"));
   }
   return references.length;
 }
@@ -32,7 +45,7 @@ async function workflowFiles(directory) {
   for (const entry of entries) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await workflowFiles(path));
-    else if (/\.ya?ml$/i.test(entry.name)) files.push(path);
+    else if (/\\.ya?ml$/i.test(entry.name)) files.push(path);
   }
   return files;
 }
