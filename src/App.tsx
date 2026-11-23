@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Globe2, Pause, Play, RadioTower, RefreshCw, ShieldCheck, Wifi, WifiOff, Zap } from "lucide-react";
+import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Download, Gauge, Globe2, Pause, Play, RadioTower, RefreshCw, ShieldCheck, Wifi, WifiOff, Zap } from "lucide-react";
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
 import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, summarizeLatency, type LatencySample, type LatencySourceFilter, type LatencyWindow } from "./analytics/latency";
 import { appendReliabilityObservation, type ReliabilityObservation } from "./analytics/reliability";
+import { createDiagnosticsSnapshot } from "./analytics/diagnostics-export";
 import { ReliabilityPanel } from "./components/ReliabilityPanel";
 import { IncidentTimeline } from "./components/IncidentTimeline";
 import { NetworkTestLab } from "./components/NetworkTestLab";
@@ -40,6 +41,19 @@ function App() {
   const [instrumentationSupport, setInstrumentationSupport] = useState({ fetch: false, xhr: false });
   const activeProbeController = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<"all" | "errors" | "status">("all");
+
+  const exportSnapshot = useCallback(() => {
+    const snapshot = createDiagnosticsSnapshot({ state, probeHistory, latencySamples, reliabilityObservations });
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `network-state-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+  }, [state, probeHistory, latencySamples, reliabilityObservations]);
 
   useEffect(() => {
     monitor.start();
@@ -161,6 +175,7 @@ function App() {
         <div className="topbar-right">
           <span className="live-indicator"><i /> LIVE MONITOR</span>
           <span className="topbar-divider" />
+          <button type="button" className="secondary-button export-button" onClick={exportSnapshot} aria-label="Export diagnostics snapshot"><Download size={13} /> Export snapshot</button>
           <span className="version">PREVIEW 0.1</span>
         </div>
       </header>
