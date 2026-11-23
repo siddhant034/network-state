@@ -104,7 +104,6 @@ describe("NetworkTestLab", () => {
     ));
   });
 
-
   it("requires confirmation before clearing saved configs and supports cancelling", async () => {
     render(<NetworkTestLab />);
     fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
@@ -128,6 +127,15 @@ describe("NetworkTestLab", () => {
     expect(readSaved().configs).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage quota exceeded", "QuotaExceededError");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/Could not clear local storage/);
+    expect(screen.getByRole("group", { name: "Clear all saved configs?" })).toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+    setItem.mockRestore();
+
     fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs" }));
     expect(readSaved().configs).toHaveLength(0);
     expect(await screen.findByRole("status")).toHaveTextContent(/All saved configs cleared/);
