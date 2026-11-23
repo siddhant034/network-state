@@ -356,70 +356,88 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
     }
   }
 
-  // Timer callbacks supplied as strings are executable code too. Resolve
-  // simple aliases and computed global members so syntax changes cannot evade
-  // the same fail-closed policy. Function callbacks remain supported.
+  // Timer aliases are scope-aware because minifiers reuse short identifiers
+  // in separate functions. A file-wide alias set can otherwise misclassify an
+  // unrelated callback as executable timer source and reject valid builds.
   const timerNames = new Set(["setTimeout", "setInterval"]);
-  const timerAliases = new Set();
-
-  function timerReferenceAt(index) {
-    const token = tokens[index];
-    if (token?.type === "identifier" && timerNames.has(token.value)) {
-      return { name: token.value, next: index + 1 };
+  const scopeParents = new Map([[0, null]]);
+  const tokenScopes = [];
+  const stack = [0];
+  let nextScope = 1;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i]?.value === "}") if (stack.length > 1) stack.pop();
+    tokenScopes[i] = stack[stack.length - 1];
+    if (tokens[i]?.value === "{") {
+      const child = nextScope++;
+      scopeParents.set(child, stack[stack.length - 1]);
+      stack.push(child);
     }
-    if (token?.type !== "identifier" ||
-        !["window", "globalThis", "self"].includes(token.value)) return undefined;
-
-    if (tokens[index + 1]?.value === "." &&
-        tokens[index + 2]?.type === "identifier" &&
-        timerNames.has(tokens[index + 2].value)) {
-      return { name: tokens[index + 2].value, next: index + 3 };
-    }
-    if (tokens[index + 1]?.value === "[" &&
-        tokens[index + 2]?.type === "string" &&
-        timerNames.has(tokens[index + 2].value) &&
-        tokens[index + 3]?.value === "]") {
-      return { name: tokens[index + 2].value, next: index + 4 };
-    }
-    return undefined;
   }
-
-  let timerAliasesConverged = false;
+  function timerReferenceAt(i) {
+    const t = tokens[i];
+    if (t?.type === "identifier" && timerNames.has(t.value)) return { name: t.value, next: i + 1 };
+    if (t?.type !== "identifier" || !["window", "globalThis", "self"].includes(t.value)) return;
+    if (tokens[i + 1]?.value === "." && tokens[i + 2]?.type === "identifier" && timerNames.has(tokens[i + 2].value)) {
+      return { name: tokens[i + 2].value, next: i + 3 };
+    }
+    if (tokens[i + 1]?.value === "[" && tokens[i + 2]?.type === "string" &&
+        timerNames.has(tokens[i + 2].value) && tokens[i + 3]?.value === "]") {
+      return { name: tokens[i + 2].value, next: i + 4 };
+    }
+  }
+  const declarations = new Map();
+  const definitions = [];
+  const uninitialized = new Set();
+  const aliases = new Map();
+  const key = (scope, name) => scope + ":" + name;
+  function namesIn(scope) {
+    if (!declarations.has(scope)) declarations.set(scope, new Set());
+    return declarations.get(scope);
+  }
+  function resolveAlias(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
+      if (namesIn(current).has(name)) return aliases.get(key(current, name));
+    }
+  }
+  for (let i = 0; i < tokens.length; i++) {
+    if (!["const", "let", "var"].includes(tokens[i]?.value) || tokens[i + 1]?.type !== "identifier") continue;
+    const name = tokens[i + 1].value, scope = tokenScopes[i];
+    namesIn(scope).add(name);
+    if (tokens[i + 2]?.value === "=") definitions.push({ name, scope, rhs: i + 3 });
+    else if (tokens[i + 2]?.value === ";" || tokens[i + 2]?.value === ",") uninitialized.add(key(scope, name));
+  }
+  let converged = false;
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
-    for (let index = 0; index < tokens.length - 2; index++) {
-      const name = tokens[index];
-      if (name.type !== "identifier" || tokens[index + 1]?.value !== "=") continue;
-      const reference = timerReferenceAt(index + 2);
-      const alias = tokens[index + 2]?.type === "identifier" &&
-        timerAliases.has(tokens[index + 2].value);
-      if ((reference || alias) && !timerAliases.has(name.value)) {
-        timerAliases.add(name.value);
+    const resolveDefinition = (name, scope, rhs) => {
+      const direct = timerReferenceAt(rhs);
+      const token = tokens[rhs];
+      const alias = token?.type === "identifier" ? resolveAlias(token.value, tokenScopes[rhs]) : undefined;
+      const api = direct?.name ?? alias;
+      if (api && aliases.get(key(scope, name)) !== api) {
+        aliases.set(key(scope, name), api);
         changed = true;
       }
+    };
+    for (const definition of definitions) resolveDefinition(definition.name, definition.scope, definition.rhs);
+    for (let i = 0; i < tokens.length - 2; i++) {
+      if (tokens[i]?.type !== "identifier" || tokens[i + 1]?.value !== "=") continue;
+      const scope = tokenScopes[i], name = tokens[i].value;
+      if (uninitialized.has(key(scope, name))) resolveDefinition(name, scope, i + 2);
     }
-    if (!changed) {
-      timerAliasesConverged = true;
-      break;
-    }
-    if (pass === 7) {
-      throw new Error("JavaScript timer alias depth exceeds 8");
-    }
+    if (!changed) { converged = true; break; }
   }
-  if (!timerAliasesConverged) {
-    throw new Error("JavaScript timer alias depth exceeds 8");
-  }
-
-  for (let index = 0; index < tokens.length; index++) {
-    const token = tokens[index];
-    const directOrAlias = token.type === "identifier" &&
-      (timerNames.has(token.value) || timerAliases.has(token.value));
-    const globalMember = timerReferenceAt(index);
-    const open = directOrAlias
-      ? callOpenAfter(index)
-      : globalMember ? callOpenAfter(globalMember.next - 1) : -1;
+  if (!converged) throw new Error("JavaScript timer alias depth exceeds 8");
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const alias = token.type === "identifier" ? resolveAlias(token.value, tokenScopes[i]) : undefined;
+    const direct = token.type === "identifier" && timerNames.has(token.value);
+    const member = timerReferenceAt(i);
+    const open = direct || alias ? callOpenAfter(i) : member ? callOpenAfter(member.next - 1) : -1;
     if (open >= 0 && ["string", "template"].includes(tokens[open + 1]?.type)) {
-      throw new Error("Cannot audit string-based JavaScript timer code near: " + tokens.slice(Math.max(0, index - 3), Math.min(tokens.length, open + 4)).map(({ type, value }) => type + ":" + String(value).slice(0, 40)).join(" "));
+      throw new Error("Cannot audit string-based JavaScript timer code near: " +
+        tokens.slice(Math.max(0, i - 3), Math.min(tokens.length, open + 4))
+          .map(({ type, value }) => type + ":" + String(value).slice(0, 40)).join(" "));
     }
   }
 
