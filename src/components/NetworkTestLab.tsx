@@ -47,6 +47,9 @@ export function NetworkTestLab() {
   const deleteConfigTriggerRef = useRef<HTMLButtonElement | null>(null);
   const deleteConfigCancelRef = useRef<HTMLButtonElement | null>(null);
   const deleteConfirmationWasOpenRef = useRef(false);
+  const clearConfigsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const clearConfigsCancelRef = useRef<HTMLButtonElement | null>(null);
+  const clearConfirmationWasOpenRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
@@ -87,6 +90,29 @@ export function NetworkTestLab() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showDeleteConfirmation]);
+
+
+  useEffect(() => {
+    if (!showClearConfirmation) {
+      if (clearConfirmationWasOpenRef.current) {
+        clearConfirmationWasOpenRef.current = false;
+        clearConfigsTriggerRef.current?.focus();
+      }
+      return;
+    }
+
+    clearConfirmationWasOpenRef.current = true;
+    // Focus Cancel first so the destructive action is never the initial focus.
+    clearConfigsCancelRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowClearConfirmation(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showClearConfirmation]);
 
   const parsed = useMemo(() => parseNetworkLabEndpoints(endpointInput), [endpointInput]);
   const totalRequests = parsed.endpoints.length * requestsPerEndpoint;
@@ -269,7 +295,7 @@ export function NetworkTestLab() {
           </label>
           <button type="button" className="network-lab-config-button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}><FolderOpen size={13} /> Load</button>
           <button ref={deleteConfigTriggerRef} type="button" className="network-lab-config-button danger" onClick={() => { setShowClearConfirmation(false); setShowDeleteConfirmation(true); }} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
-          <button type="button" className="network-lab-config-button muted" onClick={() => { setShowDeleteConfirmation(false); setShowClearConfirmation(true); }} disabled={running || savedConfigs.length === 0}>Clear all</button>
+          <button ref={clearConfigsTriggerRef} type="button" className="network-lab-config-button muted" onClick={() => { setShowDeleteConfirmation(false); setShowClearConfirmation(true); }} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
         {showDeleteConfirmation && selectedConfigId && savedConfigs.some((config) => config.id === selectedConfigId) && (
           <section className="network-lab-delete-confirmation" role="group" aria-labelledby="network-lab-delete-title" aria-describedby="network-lab-delete-description">
@@ -282,12 +308,12 @@ export function NetworkTestLab() {
           </section>
         )}
         {showClearConfirmation && (
-          <section className="network-lab-clear-confirmation" role="group" aria-labelledby="network-lab-clear-title">
+          <section className="network-lab-clear-confirmation" role="group" aria-labelledby="network-lab-clear-title" aria-describedby="network-lab-clear-description">
             <h3 id="network-lab-clear-title">Clear all saved configs?</h3>
-            <p>This will permanently remove {savedConfigs.length} saved config{savedConfigs.length === 1 ? "" : "s"} from this browser. Your current form and completed results will not be changed.</p>
+            <p id="network-lab-clear-description">This will permanently remove {savedConfigs.length} saved config{savedConfigs.length === 1 ? "" : "s"} from this browser. Your current form and completed results will not be changed.</p>
             <div className="network-lab-clear-actions">
               <button type="button" className="network-lab-config-button danger" onClick={handleConfirmClearConfigs} disabled={running}>Delete all saved configs</button>
-              <button type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(false)}>Cancel</button>
+              <button ref={clearConfigsCancelRef} type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(false)}>Cancel</button>
             </div>
           </section>
         )}
