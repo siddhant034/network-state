@@ -28,6 +28,7 @@ const sampleResult: NetworkLabResult = {
 describe("NetworkTestLab", () => {
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
