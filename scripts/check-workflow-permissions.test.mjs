@@ -45,6 +45,22 @@ test("rejects pull_request_target in block-sequence and flow event syntax", () =
   assert.throws(() => assertWorkflowPermissions(quotedMapping), /pull_request_target/);
 });
 
+test("fails closed on YAML anchors, aliases, and merge keys in event triggers", () => {
+  const directAlias = base.replace("on:" + newline + "  pull_request:", "on: *eventSet");
+  assert.throws(() => assertWorkflowPermissions(directAlias), /anchors, aliases, or merge keys/);
+
+  const anchoredSequence = base.replace("on:" + newline + "  pull_request:", "on: &eventSet" + newline + "  - pull_request");
+  assert.throws(() => assertWorkflowPermissions(anchoredSequence), /anchors, aliases, or merge keys/);
+
+  const mergedEvents = base.replace("on:" + newline + "  pull_request:", "on:" + newline + "  <<: *eventSet" + newline + "  pull_request:");
+  assert.throws(() => assertWorkflowPermissions(mergedEvents), /anchors, aliases, or merge keys/);
+});
+
+test("allows ordinary branch glob patterns in event configuration", () => {
+  const glob = base.replace("  pull_request:", "  push:" + newline + "    branches:" + newline + "      - 'release/*'");
+  assert.equal(assertWorkflowPermissions(glob), true);
+});
+
 test("allows explicit read-only permissions on a build job", () => {
   const build = base.replace("  verify:", "  build:" + newline + "    permissions:" + newline + "      contents: read" + newline + "  verify:");
   assert.equal(assertWorkflowPermissions(build), true);
