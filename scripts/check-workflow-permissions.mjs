@@ -99,7 +99,7 @@ export function assertWorkflowPermissions(source, file = "workflow") {
     }
   }
   if (unsupportedTriggerYaml !== -1) {
-    throw new Error(file + ":" + (unsupportedTriggerYaml + 1) + " uses unsupported or aliased trigger YAML; use an explicit event mapping or list");
+    throw new Error(file + ":" + (unsupportedTriggerYaml + 1) + " uses unsupported trigger YAML (anchors, aliases, or merge keys are not allowed); use an explicit event mapping or list");
   }
   if (unsafeTrigger !== -1) {
     throw new Error(file + ":" + (unsafeTrigger + 1) + " uses pull_request_target; use pull_request with read-only permissions");
