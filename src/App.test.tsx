@@ -27,6 +27,23 @@ describe("Network State dashboard reachability controls", () => {
     vi.clearAllMocks();
   });
 
+
+  it("exports a diagnostics snapshot without persisting it in the app", async () => {
+    const createObjectURL = vi.fn(() => "blob:diagnostics");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Export diagnostics snapshot" }));
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostics");
+    expect(screen.getByRole("button", { name: "Export diagnostics snapshot" })).toBeInTheDocument();
+  });
+
   it("keeps page request instrumentation opt-in and exposes a clear toggle", async () => {
     render(<App />);
 
