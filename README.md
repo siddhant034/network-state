@@ -27,6 +27,7 @@ Network State turns browser network signals into a readable activity stream. It 
 - HTTP response availability, 2xx success rates, transport-failure rates, and per-source recovery-time analytics.
 - A correlated incident timeline that groups overlapping browser, reachability-probe, Fetch, and XHR outages, with source, severity, status, time-window, and text filters.
 - A repeatable network testing lab for comparing up to five endpoints with bounded concurrency, per-request timeouts, retries, and explicitly labelled client-side latency/failure simulation.
+- A downloadable, versioned diagnostics snapshot with bounded event, probe, latency, and reliability history.
 - Request instrumentation distinguishes HTTP errors, transport failures, timeouts, and aborts while preserving original request behavior.
 
 ## Development
@@ -54,13 +55,13 @@ npm run build
 
 The app runs diagnostics locally. It does not transmit connection information or request history to an analytics backend. Reachability probes are GET requests with browser credentials omitted, no referrer, and cache disabled. The configured endpoint is not copied into the diagnostic event history; only a generic probe label and outcome are retained locally. A custom cross-origin endpoint must allow this site through CORS. Any HTTP response (including 4xx/5xx) confirms that the endpoint responded; non-2xx responses are shown separately from network failures.
 
-Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer. Reliability history stores only timestamp, source, and outcome in a bounded 500-observation in-memory buffer. Incident correlation derives from those normalized observations and browser connectivity events; it does not add request URLs, headers, or bodies. Both histories are cleared when the page is reloaded. The network testing lab sends credential-free GET requests only to endpoints the user enters, with a maximum of six concurrent requests and ten scheduled checks per endpoint per run, with up to two retries per check. It retains only the endpoint host label, result status, timing, and attempt count in its visible run history; endpoint paths and query strings are not copied into result records. Optional latency and failure simulation is applied only inside the lab runner and does not throttle or modify browser-wide traffic. A configured retry budget can increase actual HTTP attempts beyond the scheduled-check count. Use only endpoints you own or are authorized to test; cross-origin endpoints must allow this site through CORS.
+Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer. Reliability history stores only timestamp, source, and outcome in a bounded 500-observation in-memory buffer. Incident correlation derives from those normalized observations and browser connectivity events; it does not add request URLs, headers, or bodies. Both histories are cleared when the page is reloaded. The Export snapshot control creates a local JSON download only; it omits request URLs/paths, query strings, fragments, free-form event details, and testing-lab endpoint configurations/results. Review the downloaded report before sharing it. The network testing lab sends credential-free GET requests only to endpoints the user enters, with a maximum of six concurrent requests and ten scheduled checks per endpoint per run, with up to two retries per check. It retains only the endpoint host label, result status, timing, and attempt count in its visible run history; endpoint paths and query strings are not copied into result records. Optional latency and failure simulation is applied only inside the lab runner and does not throttle or modify browser-wide traffic. A configured retry budget can increase actual HTTP attempts beyond the scheduled-check count. Use only endpoints you own or are authorized to test; cross-origin endpoints must allow this site through CORS.
 
 ## Architecture
 
 - `src/core`: browser-independent state model and monitoring contract.
 - `src/adapters`: reachability probes, opt-in Fetch/XHR instrumentation, and bounded network-lab execution.
-- `src/analytics`: bounded response-time and reliability histories, percentile summaries, availability rates, recovery calculations, incident correlation, and chart coordinates.
+- `src/analytics`: bounded response-time and reliability histories, percentile summaries, availability rates, recovery calculations, incident correlation, chart coordinates, and privacy-filtered diagnostics export.
 - `src/components`: accessible reliability and incident-investigation presentation.
 - `src/App.tsx`: React dashboard and user interactions.
 - `src/styles.css`: responsive visual system.
@@ -76,7 +77,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Latency history and trend visualization (in-memory, bounded, source- and time-filtered)
 - [x] Request success/failure rates, HTTP availability, and per-source recovery analytics (bounded, in-memory)
 - [x] Correlated incident timeline and investigation filters (source, severity, status, time window, and text)
-- [ ] Exportable diagnostics snapshot
+- [x] Exportable diagnostics snapshot (versioned JSON, bounded histories, destination/detail redaction)
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [ ] Save and replay named testing-lab configurations
 - [ ] Cross-browser verification and accessible interaction polish
