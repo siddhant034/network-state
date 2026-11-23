@@ -775,11 +775,11 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       }
     }
 
-    const aliasApi = token.type === "identifier" ? aliasAt(token.value, tokenScopes[index]) : undefined;
+    const aliasApi = token.type === "identifier" ? networkAliasAt(token.value, networkTokenScopes[index]) : undefined;
     if (aliasApi) {
       const invocation = invocationAfter(index);
       const openIndex = invocation?.openIndex ?? -1;
-      const boundUrl = boundUrlAt(token.value, tokenScopes[index]);
+      const boundUrl = networkBoundUrlAt(token.value, networkTokenScopes[index]);
       if (aliasApi === "fetch" && boundUrl !== undefined) {
         urls.push(boundUrl);
       } else if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
