@@ -1357,6 +1357,27 @@ test("rejects computed string-timer code before contacting its generated request
 });
 
 
+test("keeps network API aliases isolated across lexical scopes with reused names", () => {
+  const source = [
+    "function first() {",
+    "  const request = fetch;",
+    '  request("https://tracker.example/outer");',
+    "  function nested() {",
+    "    const request = () => {};",
+    '    request("https://ignored.example/not-network");',
+    "  }",
+    "  nested();",
+    "}",
+    "function second() {",
+    "  const request = () => {};",
+    '  request("https://ignored.example/second");',
+    "}",
+  ].join("\\n");
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), [
+    "https://tracker.example/outer",
+  ]);
+});
+
 test("does not carry timer aliases across lexical scopes with reused names", () => {
   const source = [
     "{ const g = setTimeout; g(() => {}, 0); }",
