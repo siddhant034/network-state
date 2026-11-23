@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -16,6 +14,11 @@ concurrency:
 
 jobs:
   build:
+    # A manually dispatched run on a feature branch may validate the workflow,
+    # but must never publish a non-main revision to the public Pages site.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,13 +29,25 @@ jobs:
           node-version: 22
       - name: Install dependencies from the committed lockfile
         run: npm ci --no-audit --no-fund
+      - name: Run unit tests
+        run: npm test
+      - name: Test published-site verifier and artifact preflight
+        run: node --test scripts/pages-smoke-test.test.mjs scripts/pages-build-smoke-test.test.mjs
       - name: Build
         run: npm run build
+      - name: Preflight the exact Pages artifact
+        run: node scripts/pages-build-smoke-test.mjs dist
+      - name: Enforce dependency audit
+        run: npm audit --audit-level=low
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
   deploy:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
