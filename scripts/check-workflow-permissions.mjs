@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const WORKFLOWS_DIR = join(fileURLToPath(new URL("..", import.meta.url)), ".github", "workflows");
+const WORKFLOWS_DIR = fileURLToPath(new URL("../.github/workflows/", import.meta.url));
 
 function stripComment(line) {
   let quote = null;
