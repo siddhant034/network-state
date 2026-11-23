@@ -419,7 +419,7 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       ? callOpenAfter(index)
       : globalMember ? callOpenAfter(globalMember.next - 1) : -1;
     if (open >= 0 && ["string", "template"].includes(tokens[open + 1]?.type)) {
-      throw new Error("Cannot audit string-based JavaScript timer code");
+      throw new Error("Cannot audit string-based JavaScript timer code near: " + tokens.slice(Math.max(0, index - 3), Math.min(tokens.length, open + 4)).map(({ type, value }) => type + ":" + String(value).slice(0, 40)).join(" "));
     }
   }
 
