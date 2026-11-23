@@ -7,16 +7,17 @@ import { assertImmutableActionPins, findActionReferences, verifyWorkflowDirector
 
 const SHA = "a".repeat(40);
 
-test("accepts full immutable SHAs and safe local composite actions", () => {
+test("accepts full immutable SHAs, safe local composite actions, and quoted keys", () => {
   const source = "steps:\n" +
     "  - uses: actions/checkout@" + SHA + " # reviewed release\n" +
     "  - uses: ./.github/actions/local\n" +
     "  - name: quoted action\n" +
-    "    uses: 'actions/setup-node@" + SHA + "'\n";
-  assert.equal(assertImmutableActionPins(source), 3);
+    "    uses: 'actions/setup-node@" + SHA + "'\n" +
+    "  - \"uses\": \"owner/action@" + SHA + "\" # comment\n";
+  assert.equal(assertImmutableActionPins(source), 4);
 });
 
-test("rejects mutable tags, branches, abbreviated hashes, and unsafe local paths", () => {
+test("rejects mutable refs, abbreviated hashes, and unsafe local paths", () => {
   for (const reference of [
     "actions/checkout@v4",
     "owner/action@main",
@@ -27,6 +28,23 @@ test("rejects mutable tags, branches, abbreviated hashes, and unsafe local paths
   ]) {
     assert.throws(() => assertImmutableActionPins("steps:\n  - uses: " + reference + "\n"), /mutable or invalid action ref/);
   }
+});
+
+test("rejects YAML scalar forms the dependency-free scanner cannot parse", () => {
+  const cases = [
+    "steps:\n  - uses: >-\n      owner/action@" + SHA + "\n",
+    "steps:\n  - uses: *pinned\n",
+    "steps:\n  - uses: &pinned owner/action@" + SHA + "\n",
+    "steps:\n  - uses:\n      owner/action@" + SHA + "\n",
+  ];
+  for (const source of cases) {
+    assert.throws(() => assertImmutableActionPins(source), /unsupported YAML scalar syntax/);
+  }
+});
+
+test("fails closed on flow-style action mappings instead of skipping them", () => {
+  const source = "steps:\n  - { name: checkout, uses: actions/checkout@v4 }\n";
+  assert.throws(() => assertImmutableActionPins(source, ".github/workflows/ci.yml"), /\.github\/workflows\/ci\.yml:2.*inline YAML action mapping/);
 });
 
 test("does not mistake prose or run commands for action references", () => {
