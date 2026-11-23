@@ -62,3 +62,8 @@ Do not announce a public demo until the deployment URL has been opened and verif
 - [ ] Add release notes and a version tag.
 - [ ] Verify the final `main` commit, CI run, dependency audit, and Pages deployment all refer to the same release commit.
 - [ ] Only then mark Network State ready for final review.
+
+
+## Pre-deployment artifact check
+
+CI runs the same resource-origin and static network-dependency audit against the generated `dist` artifact before the dependency audit and browser matrix finish. This catches broken project-base asset paths, missing build output, and unexpected external resource references before any Pages deployment occurs. The post-deployment smoke test remains required because the published host can still differ from the local artifact.
