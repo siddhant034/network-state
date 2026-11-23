@@ -70,6 +70,7 @@ export function assertWorkflowPermissions(source, file = "workflow") {
   let inJobs = false;
   let currentJob = null;
   let deployPermissions = null;
+  let deployJobFound = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     if (/^jobs:\\s*$/.test(line)) {
@@ -83,7 +84,10 @@ export function assertWorkflowPermissions(source, file = "workflow") {
       continue;
     }
     const job = line.match(/^  ([A-Za-z0-9_-]+):\\s*$/);
-    if (job) currentJob = job[1];
+    if (job) {
+      currentJob = job[1];
+      if (currentJob === "deploy") deployJobFound = true;
+    }
 
     if (/^    permissions\\s*:/.test(line)) {
       if (!currentJob) throw new Error(file + ":" + (i + 1) + " job permissions appear outside a job");
@@ -98,6 +102,9 @@ export function assertWorkflowPermissions(source, file = "workflow") {
     }
   }
 
+  if (deployJobFound && !deployPermissions) {
+    throw new Error(file + " deploy job must declare explicit Pages deployment permissions");
+  }
   if (deployPermissions && (deployPermissions.get("pages") !== "write" || deployPermissions.get("id-token") !== "write")) {
     throw new Error(file + " deploy job must grant pages: write and id-token: write");
   }
