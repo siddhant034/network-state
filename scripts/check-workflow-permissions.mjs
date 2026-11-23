@@ -43,10 +43,31 @@ function parsePermissionBlock(lines, start, file, scope) {
 
 export function assertWorkflowPermissions(source, file = "workflow") {
   const lines = source.split(/\r?\n/).map(stripComment);
-  const unsafeTrigger = lines.findIndex((line) =>
-    /^\s*(?:["']?pull_request_target["']?)\s*:/.test(line) ||
-    /^\s*on\s*:\s*.*(?:\[|,|\s)pull_request_target(?:\s|,|\])/.test(line),
-  );
+  // Inspect only the top-level "on" block. GitHub accepts event lists as
+  // block sequences as well as mappings/flow collections; the latter forms
+  // must not bypass the pull_request_target guard.
+  let inOnBlock = false;
+  let unsafeTrigger = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const on = line.match(/^(?:on|"on"|'on')\\s*:\\s*(.*)$/);
+    if (on) {
+      inOnBlock = true;
+      if (/\\bpull_request_target\\b/.test(on[1])) {
+        unsafeTrigger = i;
+        break;
+      }
+      continue;
+    }
+    if (inOnBlock && /^\\S/.test(line)) {
+      inOnBlock = false;
+      continue;
+    }
+    if (inOnBlock && /\\bpull_request_target\\b/.test(line)) {
+      unsafeTrigger = i;
+      break;
+    }
+  }
   if (unsafeTrigger !== -1) {
     throw new Error(file + ":" + (unsafeTrigger + 1) + " uses pull_request_target; use pull_request with read-only permissions");
   }
