@@ -25,14 +25,15 @@ describe("Network State dashboard reachability controls", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
 
   it("exports a diagnostics snapshot without persisting it in the app", async () => {
     const createObjectURL = vi.fn(() => "blob:diagnostics");
     const revokeObjectURL = vi.fn();
-    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
-    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+    const URLStub = Object.assign(class extends URL {}, { createObjectURL, revokeObjectURL });
+    vi.stubGlobal("URL", URLStub);
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     render(<App />);
@@ -40,7 +41,7 @@ describe("Network State dashboard reachability controls", () => {
 
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
     expect(click).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostics");
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostics"));
     expect(screen.getByRole("button", { name: "Export diagnostics snapshot" })).toBeInTheDocument();
   });
 
