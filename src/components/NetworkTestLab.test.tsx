@@ -104,6 +104,43 @@ describe("NetworkTestLab", () => {
     ));
   });
 
+  it("requires confirmation before deleting one saved config and recovers from storage failure", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Delete only after review" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    const readSaved = () => {
+      const raw = window.localStorage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
+      return raw ? JSON.parse(raw) as { configs: Array<{ name: string }> } : { configs: [] };
+    };
+    expect(readSaved().configs.map((config) => config.name)).toEqual(["Delete only after review"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByRole("group", { name: "Delete saved config?" })).toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Delete saved config?" })).not.toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage quota exceeded", "QuotaExceededError");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delete saved config" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/Could not update local storage/);
+    expect(screen.getByRole("group", { name: "Delete saved config?" })).toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+    setItem.mockRestore();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete saved config" }));
+    expect(readSaved().configs).toHaveLength(0);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Saved config deleted/);
+  });
+
   it("requires confirmation before clearing saved configs and supports cancelling", async () => {
     render(<NetworkTestLab />);
     fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
