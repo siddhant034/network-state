@@ -240,8 +240,7 @@ export function NetworkTestLab() {
             value={endpointInput}
             onChange={(event) => setEndpointInput(event.target.value)}
             spellCheck={false}
-            placeholder={"https://api.example.com/health
-https://status.example.com/"}
+            placeholder={"https://api.example.com/health\nhttps://status.example.com/"}
             disabled={running}
           />
         </label>
