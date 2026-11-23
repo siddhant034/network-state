@@ -30,7 +30,7 @@ export function NetworkTestLab() {
   const [results, setResults] = useState<NetworkLabResult[]>([]);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState("");\n  const [savedConfigs, setSavedConfigs] = useState<SavedNetworkLabConfig[]>([]);\n  const [configName, setConfigName] = useState("");\n  const [selectedConfigId, setSelectedConfigId] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
