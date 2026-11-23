@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NetworkTestLab } from "./NetworkTestLab";
 import { runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
+import { NETWORK_LAB_CONFIG_STORAGE_KEY } from "../adapters/network-lab-configs";
 
 vi.mock("../adapters/network-test-lab", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../adapters/network-test-lab")>();
@@ -101,6 +102,35 @@ describe("NetworkTestLab", () => {
       expect.objectContaining({ requestsPerEndpoint: 5, concurrency: 4 }),
       expect.any(Function)
     ));
+  });
+
+
+  it("requires confirmation before clearing saved configs and supports cancelling", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Keep until confirmed" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    const readSaved = () => {
+      const raw = window.localStorage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
+      return raw ? JSON.parse(raw) as { configs: unknown[] } : { configs: [] };
+    };
+    expect(readSaved().configs).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByRole("group", { name: "Clear all saved configs?" })).toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Clear all saved configs?" })).not.toBeInTheDocument();
+    expect(readSaved().configs).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs" }));
+    expect(readSaved().configs).toHaveLength(0);
+    expect(await screen.findByRole("status")).toHaveTextContent(/All saved configs cleared/);
   });
 
   it("aborts the active run when the user cancels it", async () => {
