@@ -567,7 +567,55 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
   // common refactors such as const request = fetch; request(url), while keeping
   // unrelated object methods out of the network audit.
   const functionAliases = new Map();
+  const boundFetchUrls = new Map();
   const directApis = new Set(["fetch", "sendBeacon", "WebSocket", "EventSource"]);
+
+  // Resolve aliases against lexical bindings rather than bare minified names.
+  // Minifiers commonly reuse short names in unrelated functions; a file-wide
+  // map can oscillate between those bindings and fail a valid production build.
+  const scopeParents = new Map([[0, null]]);
+  const tokenScopes = [];
+  const scopeStack = [0];
+  let nextScope = 1;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i]?.value === "}") if (scopeStack.length > 1) scopeStack.pop();
+    tokenScopes[i] = scopeStack[scopeStack.length - 1];
+    if (tokens[i]?.value === "{") {
+      const child = nextScope++;
+      scopeParents.set(child, scopeStack[scopeStack.length - 1]);
+      scopeStack.push(child);
+    }
+  }
+
+  const declarations = new Map();
+  const bindingKey = (scope, name) => scope + ":" + name;
+  function namesIn(scope) {
+    if (!declarations.has(scope)) declarations.set(scope, new Set());
+    return declarations.get(scope);
+  }
+  for (let i = 0; i < tokens.length; i++) {
+    if (["const", "let", "var"].includes(tokens[i]?.value) && tokens[i + 1]?.type === "identifier") {
+      namesIn(tokenScopes[i]).add(tokens[i + 1].value);
+    }
+  }
+  function bindingScope(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
+      if (namesIn(current).has(name)) return current;
+    }
+    return scope;
+  }
+  function aliasAt(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
+      if (namesIn(current).has(name)) return functionAliases.get(bindingKey(current, name));
+    }
+    return functionAliases.get(bindingKey(scope, name));
+  }
+  function boundUrlAt(name, scope) {
+    for (let current = scope; current !== null && current !== undefined; current = scopeParents.get(current)) {
+      if (namesIn(current).has(name)) return boundFetchUrls.get(bindingKey(current, name));
+    }
+    return boundFetchUrls.get(bindingKey(scope, name));
+  }
 
   function memberApiAt(start) {
     const base = tokens[start];
@@ -580,100 +628,79 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         tokens[start + 2]?.type === "string" && tokens[start + 3]?.value === "]") {
       member = tokens[start + 2].value;
       next = start + 4;
-    } else {
-      return undefined;
-    }
+    } else return undefined;
 
-    if (["window", "globalThis", "self"].includes(base.value) && member === "fetch") {
-      return { api: "fetch", next };
-    }
-    if (base.value === "navigator" && member === "sendBeacon") {
-      return { api: "sendBeacon", next };
-    }
-    // XMLHttpRequest.open is an instance method; its stable HTTP-method/url
-    // signature is checked again at the call site before a URL is recorded.
+    if (["window", "globalThis", "self"].includes(base.value) && member === "fetch") return { api: "fetch", next };
+    if (base.value === "navigator" && member === "sendBeacon") return { api: "sendBeacon", next };
     if (member === "open") return { api: "open", next };
     return undefined;
   }
 
-  const boundFetchUrls = new Map();
-
   function apiFromRhs(start) {
     const token = tokens[start];
     if (token?.type !== "identifier") return undefined;
-
     let resolved;
-    if (directApis.has(token.value)) {
-      resolved = { api: token.value, next: start + 1 };
-    } else {
-      const alias = functionAliases.get(token.value);
-      if (alias) {
-        resolved = { api: alias, next: start + 1, boundUrl: boundFetchUrls.get(token.value) };
-      } else {
-        resolved = memberApiAt(start);
-      }
+    if (directApis.has(token.value)) resolved = { api: token.value, next: start + 1 };
+    else {
+      const alias = aliasAt(token.value, tokenScopes[start]);
+      if (alias) resolved = { api: alias, next: start + 1, boundUrl: boundUrlAt(token.value, tokenScopes[start]) };
+      else resolved = memberApiAt(start);
     }
     if (!resolved) return undefined;
 
-    // Preserve the URL argument of a statically bound fetch function:
-    // const request = fetch.bind(window, "https://host/path");
-    // request() always uses that bound first argument, even if a later
-    // call supplies another URL.
     const bindDot = resolved.next;
-    if (tokens[bindDot]?.value === "." &&
-        tokens[bindDot + 1]?.value === "bind" &&
+    if (tokens[bindDot]?.value === "." && tokens[bindDot + 1]?.value === "bind" &&
         tokens[bindDot + 2]?.value === "(") {
       const bindOpen = bindDot + 2;
-      const firstBoundArgument = bindOpen + 3; // skip thisArg and comma
-      const boundUrl = tokens[bindOpen + 2]?.value === ","
-        ? literalUrl(tokens[firstBoundArgument])
-        : undefined;
-      return {
-        api: resolved.api,
-        next: bindOpen + 1,
-        boundUrl: resolved.api === "fetch" ? boundUrl : undefined,
-      };
+      const firstBoundArgument = bindOpen + 3;
+      const boundUrl = tokens[bindOpen + 2]?.value === "," ? literalUrl(tokens[firstBoundArgument]) : undefined;
+      return { api: resolved.api, next: bindOpen + 1, boundUrl: resolved.api === "fetch" ? boundUrl : undefined };
     }
     return resolved;
   }
 
-  // A small fixed-point pass resolves aliases declared in either order and
-  // bounded alias chains. Dynamic assignments remain outside this static model.
   let aliasesConverged = false;
   for (let pass = 0; pass < 8; pass++) {
     let changed = false;
-    for (let index = 0; index < tokens.length - 3; index++) {
-      // Include simple post-declaration assignments (let request; request = fetch)
-      // in the static alias model. If a tracked alias is reassigned to an
-      // unknown value, invalidate it; repeated conflicting writes fail closed.
-      const assignmentTarget = tokens[index]?.value === "=" &&
-        tokens[index - 1]?.type === "identifier" &&
-        tokens[index - 2]?.value !== "." &&
-        tokens[index + 1]?.value !== "=" &&
-        tokens[index - 1]?.value !== "const";
-      if (assignmentTarget) {
-        const name = tokens[index - 1].value;
-        const resolved = apiFromRhs(index + 1);
-        if (resolved && functionAliases.get(name) !== resolved.api) {
-          functionAliases.set(name, resolved.api);
-          if (resolved.boundUrl !== undefined) boundFetchUrls.set(name, resolved.boundUrl);
-          else boundFetchUrls.delete(name);
-          changed = true;
-        } else if (resolved && resolved.boundUrl !== undefined &&
-                   boundFetchUrls.get(name) !== resolved.boundUrl) {
-          boundFetchUrls.set(name, resolved.boundUrl);
-          changed = true;
-        } else if (!resolved && functionAliases.has(name)) {
-          functionAliases.delete(name);
-          boundFetchUrls.delete(name);
+    const assignAlias = (name, scope, resolved) => {
+      const key = bindingKey(scope, name);
+      if (!resolved) {
+        if (functionAliases.has(key)) {
+          functionAliases.delete(key);
+          boundFetchUrls.delete(key);
           changed = true;
         }
+        return;
       }
-      if (!["const", "let", "var"].includes(tokens[index]?.value)) continue;
+      if (functionAliases.get(key) !== resolved.api) {
+        functionAliases.set(key, resolved.api);
+        changed = true;
+      }
+      if (resolved.boundUrl !== undefined && boundFetchUrls.get(key) !== resolved.boundUrl) {
+        boundFetchUrls.set(key, resolved.boundUrl);
+        changed = true;
+      } else if (resolved.boundUrl === undefined && boundFetchUrls.has(key)) {
+        boundFetchUrls.delete(key);
+        changed = true;
+      }
+    };
 
-      // Support renamed destructuring from known browser globals, e.g.
-      // const { fetch: request } = window. Only literal property names and
-      // explicit global sources are accepted.
+    for (let index = 0; index < tokens.length - 3; index++) {
+      // Simple assignments are considered only when the left-hand name has a
+      // declared binding in this lexical scope (or an enclosing scope).
+      const assignmentTarget = tokens[index]?.value === "=" &&
+        tokens[index - 1]?.type === "identifier" &&
+        !["const", "let", "var"].includes(tokens[index - 2]?.value) &&
+        tokens[index + 1]?.value !== "=" &&
+        tokens[index - 2]?.value !== ".";
+      if (assignmentTarget) {
+        const name = tokens[index - 1].value;
+        const scope = bindingScope(name, tokenScopes[index - 1]);
+        if (namesIn(scope).has(name)) assignAlias(name, scope, apiFromRhs(index + 1));
+      }
+
+      if (!["const", "let", "var"].includes(tokens[index]?.value)) continue;
+      const declarationScope = tokenScopes[index];
       if (tokens[index + 1]?.value === "{") {
         let close = index + 2;
         while (close < tokens.length && close - index <= 32 && tokens[close]?.value !== "}") close++;
@@ -686,8 +713,7 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
         while (property < close) {
           if (tokens[property]?.type !== "identifier") { property++; continue; }
           const propertyName = tokens[property].value;
-          let aliasName = propertyName;
-          let next = property + 1;
+          let aliasName = propertyName, next = property + 1;
           if (tokens[next]?.value === ":") {
             if (tokens[next + 1]?.type !== "identifier") { property += 2; continue; }
             aliasName = tokens[next + 1].value;
@@ -697,39 +723,19 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
           if (["window", "globalThis", "self"].includes(source) &&
               ["fetch", "WebSocket", "EventSource"].includes(propertyName)) api = propertyName;
           if (source === "navigator" && propertyName === "sendBeacon") api = propertyName;
-          if (api && functionAliases.get(aliasName) !== api) {
-            functionAliases.set(aliasName, api);
-            changed = true;
-          }
+          if (api) assignAlias(aliasName, declarationScope, { api });
           property = next;
           if (tokens[property]?.value === ",") property++;
         }
         continue;
       }
-
-      if (tokens[index + 1]?.type !== "identifier" ||
-          tokens[index + 2]?.value !== "=") continue;
+      if (tokens[index + 1]?.type !== "identifier" || tokens[index + 2]?.value !== "=") continue;
       const name = tokens[index + 1].value;
-      const resolved = apiFromRhs(index + 3);
-      if (resolved && functionAliases.get(name) !== resolved.api) {
-        functionAliases.set(name, resolved.api);
-        if (resolved.boundUrl !== undefined) boundFetchUrls.set(name, resolved.boundUrl);
-        else boundFetchUrls.delete(name);
-        changed = true;
-      } else if (resolved && resolved.boundUrl !== undefined &&
-                 boundFetchUrls.get(name) !== resolved.boundUrl) {
-        boundFetchUrls.set(name, resolved.boundUrl);
-        changed = true;
-      }
+      assignAlias(name, declarationScope, apiFromRhs(index + 3));
     }
-    if (!changed) {
-      aliasesConverged = true;
-      break;
-    }
+    if (!changed) { aliasesConverged = true; break; }
   }
-  if (!aliasesConverged) {
-    throw new Error("JavaScript network API alias depth exceeds 8");
-  }
+  if (!aliasesConverged) throw new Error("JavaScript network API alias depth exceeds 8");
 
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index];
@@ -769,12 +775,13 @@ export function extractJavaScriptNetworkUrls(source, templateDepth = 0) {
       }
     }
 
-    const aliasApi = token.type === "identifier" ? functionAliases.get(token.value) : undefined;
+    const aliasApi = token.type === "identifier" ? aliasAt(token.value, tokenScopes[index]) : undefined;
     if (aliasApi) {
       const invocation = invocationAfter(index);
       const openIndex = invocation?.openIndex ?? -1;
-      if (aliasApi === "fetch" && boundFetchUrls.has(token.value)) {
-        urls.push(boundFetchUrls.get(token.value));
+      const boundUrl = boundUrlAt(token.value, tokenScopes[index]);
+      if (aliasApi === "fetch" && boundUrl !== undefined) {
+        urls.push(boundUrl);
       } else if (aliasApi === "fetch" || aliasApi === "sendBeacon") {
         auditInvocation(invocation);
       } else if (aliasApi === "open" && openIndex >= 0 &&
