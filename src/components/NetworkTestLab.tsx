@@ -4,7 +4,7 @@ import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "
 import { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import "./NetworkTestLab.css";
 
-const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
+const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();\n\nfunction getLocalStorage(): Storage | null {\n  try { return window.localStorage; } catch { return null; }\n}
 const formatTime = (timestamp: number) => new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
@@ -83,7 +83,7 @@ export function NetworkTestLab() {
           simulatedFailureRate
         }
       });
-      if (!persistNetworkLabConfigs(next, window.localStorage)) {
+      const storage = getLocalStorage();\n      if (!storage || !persistNetworkLabConfigs(next, storage)) {
         setError("Could not save to this browser's local storage. Check storage permissions or available space.");
         setMessage("");
         return;
@@ -117,7 +117,7 @@ export function NetworkTestLab() {
   const handleDeleteConfig = () => {
     if (!selectedConfigId) return;
     const next = removeNetworkLabConfig(savedConfigs, selectedConfigId);
-    if (!persistNetworkLabConfigs(next, window.localStorage)) {
+    const storage = getLocalStorage();\n    if (!storage || !persistNetworkLabConfigs(next, storage)) {
       setError("Could not update local storage.");
       setMessage("");
       return;
@@ -129,7 +129,7 @@ export function NetworkTestLab() {
   };
 
   const handleClearConfigs = () => {
-    if (!persistNetworkLabConfigs([], window.localStorage)) {
+    const storage = getLocalStorage();\n    if (!storage || !persistNetworkLabConfigs([], storage)) {
       setError("Could not clear local storage.");
       setMessage("");
       return;
