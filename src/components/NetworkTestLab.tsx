@@ -249,7 +249,7 @@ export function NetworkTestLab() {
             <h3 id="network-lab-clear-title">Clear all saved configs?</h3>
             <p>This will permanently remove {savedConfigs.length} saved config{savedConfigs.length === 1 ? "" : "s"} from this browser. Your current form and completed results will not be changed.</p>
             <div className="network-lab-clear-actions">
-              <button type="button" className="network-lab-config-button danger" onClick={handleConfirmClearConfigs}>Delete all saved configs</button>
+              <button type="button" className="network-lab-config-button danger" onClick={handleConfirmClearConfigs} disabled={running}>Delete all saved configs</button>
               <button type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(false)}>Cancel</button>
             </div>
           </section>
