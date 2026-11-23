@@ -45,7 +45,7 @@ Automated axe checks are a smoke baseline, not a substitute for manual accessibi
 
 ## 5. Enable and verify GitHub Pages
 
-The repository already contains `.github/workflows/pages.yml`, but the Pages site must be enabled in repository settings before the workflow can deploy.
+The repository contains `.github/workflows/pages.yml`, but the Pages site must be enabled in repository settings before the workflow can deploy.
 
 1. Open **Settings → Pages** in the repository.
 2. Under **Build and deployment**, select **GitHub Actions** as the source.
@@ -53,6 +53,8 @@ The repository already contains `.github/workflows/pages.yml`, but the Pages sit
 4. Confirm the Pages build and deployment workflow completes successfully.
 5. Open the exact deployment URL reported by the workflow and verify the dashboard, assets, refresh/deep-link behavior, and base path.
 6. Re-run the browser smoke checks against the published URL, not only the local Vite development server.
+
+The Pages workflow now gates artifact upload on unit tests, published-site verifier tests, the production build, the built-artifact preflight, and `npm audit --audit-level=low`. Its deploy job is restricted to `main`; a manual dispatch from a feature branch cannot publish that branch. The post-deployment smoke test remains mandatory because the published host can still differ from the local artifact.
 
 Do not announce a public demo until the deployment URL has been opened and verified successfully.
 
@@ -63,7 +65,6 @@ Do not announce a public demo until the deployment URL has been opened and verif
 - [ ] Verify the final `main` commit, CI run, dependency audit, and Pages deployment all refer to the same release commit.
 - [ ] Only then mark Network State ready for final review.
 
-
 ## Pre-deployment artifact check
 
-CI runs the same resource-origin and static network-dependency audit against the generated `dist` artifact before the dependency audit and browser matrix finish. This catches broken project-base asset paths, missing build output, and unexpected external resource references before any Pages deployment occurs. The post-deployment smoke test remains required because the published host can still differ from the local artifact.
+CI runs the same resource-origin and static network-dependency audit against the generated `dist` artifact before the dependency audit and browser matrix finish. This catches broken project-base asset paths, missing build output, and unexpected external resource references before deployment. The Pages workflow also runs the check before uploading its deployment artifact. The post-deployment smoke test remains required.
