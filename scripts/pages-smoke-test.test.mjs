@@ -1355,3 +1355,12 @@ test("rejects computed string-timer code before contacting its generated request
   );
   assert.equal(requests.some((url) => url.includes("tracker.example")), false);
 });
+
+
+test("does not carry timer aliases across lexical scopes with reused names", () => {
+  const source = [
+    "{ const g = setTimeout; g(() => {}, 0); }",
+    "{ const g = (event, message) => { return [event, message]; }; g(\"online\", \"Connection restored\"); }",
+  ].join("\\n");
+  assert.deepEqual(extractJavaScriptNetworkUrls(source), []);
+});
