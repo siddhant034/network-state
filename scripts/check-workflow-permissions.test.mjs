@@ -22,8 +22,8 @@ test("accepts explicit read-only workflow permissions", () => {
 });
 
 test("rejects missing or broad top-level permissions", () => {
-  assert.throws(() => assertWorkflowPermissions(base.replace("permissions:\\n  contents: read\\n", "")), /exactly one top-level permissions/);
-  assert.throws(() => assertWorkflowPermissions(base.replace("permissions:\\n  contents: read", "permissions: write-all")), /explicit permissions mapping/);
+  assert.throws(() => assertWorkflowPermissions(base.replace("permissions:\n  contents: read\n", "")), /exactly one top-level permissions/);
+  assert.throws(() => assertWorkflowPermissions(base.replace("permissions:\n  contents: read", "permissions: write-all")), /explicit permissions mapping/);
   assert.throws(() => assertWorkflowPermissions(base.replace("contents: read", "contents: write")), /may only grant contents: read/);
 });
 
