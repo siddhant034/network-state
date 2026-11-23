@@ -243,7 +243,7 @@ export function NetworkTestLab() {
           <button type="button" className="network-lab-config-button muted" onClick={handleClearConfigs} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
         <p className="network-lab-config-privacy">Saved configs stay in this browser's local storage. They include full endpoint URLs (including paths and query strings) so they can be replayed. Do not save URLs containing secrets; delete configs on shared devices.</p>
-        <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} />
+        <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} disabled={running} />
       </div>
 
       <form className="network-lab-form" onSubmit={(event) => { void handleSubmit(event); }}>
