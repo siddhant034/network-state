@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Activity, FlaskConical, Play, Square } from "lucide-react";
-import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
+import { Activity, BookmarkPlus, FlaskConical, FolderOpen, Play, Square, Trash2 } from "lucide-react";
+import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";\nimport { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import "./NetworkTestLab.css";
 
 const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
@@ -49,6 +49,84 @@ export function NetworkTestLab() {
   const httpErrors = results.filter((result) => result.status === "http-error").length;
   const failures = results.filter((result) => result.status === "timeout" || result.status === "network-error" || result.status === "simulated-failure").length;
   const progress = totalRequests > 0 ? Math.min(100, Math.round((completed / totalRequests) * 100)) : 0;
+
+  const handleSaveConfig = () => {
+    if (parsed.errors.length || parsed.endpoints.length === 0) {
+      setError(parsed.errors.join(" ") || "Add at least one valid endpoint before saving.");
+      setMessage("");
+      return;
+    }
+    try {
+      const id = globalThis.crypto?.randomUUID?.() ?? "config-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+      const next = saveNetworkLabConfig(savedConfigs, {
+        id,
+        name: configName,
+        endpoints: parsed.endpoints.map((endpoint) => endpoint.url),
+        options: {
+          requestsPerEndpoint,
+          concurrency,
+          timeoutMs: timeoutSeconds * 1_000,
+          retries,
+          simulatedLatencyMs: simulatedLatency,
+          simulatedFailureRate
+        }
+      });
+      if (!persistNetworkLabConfigs(next, window.localStorage)) {
+        setError("Could not save to this browser's local storage. Check storage permissions or available space.");
+        setMessage("");
+        return;
+      }
+      setSavedConfigs(next);
+      setSelectedConfigId(next[0].id);
+      setConfigName(next[0].name);
+      setError("");
+      setMessage("Config saved in this browser only.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The config could not be saved.");
+      setMessage("");
+    }
+  };
+
+  const handleLoadConfig = () => {
+    const config = savedConfigs.find((item) => item.id === selectedConfigId);
+    if (!config) return;
+    setEndpointInput(config.endpoints.join("\\n"));
+    setRequestsPerEndpoint(config.options.requestsPerEndpoint);
+    setConcurrency(config.options.concurrency);
+    setTimeoutSeconds(config.options.timeoutMs / 1_000);
+    setRetries(config.options.retries);
+    setSimulatedLatency(config.options.simulatedLatencyMs);
+    setSimulatedFailureRate(config.options.simulatedFailureRate);
+    setConfigName(config.name);
+    setError("");
+    setMessage("Loaded config. Review its endpoints, then run the test when ready.");
+  };
+
+  const handleDeleteConfig = () => {
+    if (!selectedConfigId) return;
+    const next = removeNetworkLabConfig(savedConfigs, selectedConfigId);
+    if (!persistNetworkLabConfigs(next, window.localStorage)) {
+      setError("Could not update local storage.");
+      setMessage("");
+      return;
+    }
+    setSavedConfigs(next);
+    setSelectedConfigId("");
+    setError("");
+    setMessage("Saved config deleted from this browser.");
+  };
+
+  const handleClearConfigs = () => {
+    if (!persistNetworkLabConfigs([], window.localStorage)) {
+      setError("Could not clear local storage.");
+      setMessage("");
+      return;
+    }
+    setSavedConfigs([]);
+    setSelectedConfigId("");
+    setError("");
+    setMessage("All saved configs cleared from this browser.");
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,6 +185,31 @@ export function NetworkTestLab() {
           <p>Compare endpoint reachability under a bounded, repeatable request workload.</p>
         </div>
         <div className="network-lab-mark" aria-hidden="true"><Activity size={20} /></div>
+      </div>
+
+      <div className="network-lab-configs" aria-label="Named test configurations">
+        <div className="network-lab-config-row">
+          <label className="network-lab-config-name">
+            <span>Save current config</span>
+            <input aria-label="Config name" value={configName} onChange={(event) => setConfigName(event.target.value)} maxLength={40} placeholder="e.g. Office health checks" disabled={running} />
+          </label>
+          <button type="button" className="network-lab-config-button" onClick={handleSaveConfig} disabled={running || parsed.errors.length > 0 || parsed.endpoints.length === 0}>
+            <BookmarkPlus size={13} /> Save
+          </button>
+        </div>
+        <div className="network-lab-config-row">
+          <label className="network-lab-config-select">
+            <span>Saved configs ({savedConfigs.length}/10)</span>
+            <select aria-label="Saved configs" value={selectedConfigId} onChange={(event) => setSelectedConfigId(event.target.value)} disabled={running || savedConfigs.length === 0}>
+              <option value="">Choose a saved config</option>
+              {savedConfigs.map((config) => <option key={config.id} value={config.id}>{config.name}</option>)}
+            </select>
+          </label>
+          <button type="button" className="network-lab-config-button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}><FolderOpen size={13} /> Load</button>
+          <button type="button" className="network-lab-config-button danger" onClick={handleDeleteConfig} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
+          <button type="button" className="network-lab-config-button muted" onClick={handleClearConfigs} disabled={running || savedConfigs.length === 0}>Clear all</button>
+        </div>
+        <p className="network-lab-config-privacy">Saved configs stay in this browser's local storage. They include full endpoint URLs (including paths and query strings) so they can be replayed. Do not save URLs containing secrets; delete configs on shared devices.</p>
       </div>
 
       <form className="network-lab-form" onSubmit={(event) => { void handleSubmit(event); }}>
