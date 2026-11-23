@@ -112,3 +112,8 @@
 @media(max-width:850px){.incident-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.incident-toolbar .incident-search{grid-column:1/-1}}
 @media(max-width:700px){.incident-panel{padding:17px;margin-bottom:28px}.incident-heading{flex-direction:column}.incident-card-heading{flex-direction:column}.incident-card-meta{flex-wrap:wrap}.incident-toolbar{grid-template-columns:1fr 1fr}.incident-toolbar .incident-search{grid-column:1/-1}}
 @media(max-width:420px){.incident-toolbar{grid-template-columns:1fr}.incident-toolbar .incident-search{grid-column:auto}.incident-signal{grid-template-columns:8px minmax(0,1fr)}.incident-signal time{grid-column:2}}
+
+
+/* Compact, keyboard-accessible diagnostics export action. */
+.export-button{padding:7px 10px;font-size:10px;white-space:nowrap;letter-spacing:0}.export-button svg{flex:none}.export-button:focus-visible{outline:2px solid #75d9ae;outline-offset:3px}
+@media(max-width:640px){.export-button{padding:7px 8px}.export-button{font-size:0;gap:0}.export-button svg{width:15px;height:15px}}
