@@ -44,6 +44,9 @@ export function NetworkTestLab() {
   const [selectedConfigId, setSelectedConfigId] = useState("");
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const deleteConfigTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const deleteConfigCancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteConfirmationWasOpenRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
@@ -62,6 +65,28 @@ export function NetworkTestLab() {
       controllerRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!showDeleteConfirmation) {
+      if (deleteConfirmationWasOpenRef.current) {
+        deleteConfirmationWasOpenRef.current = false;
+        deleteConfigTriggerRef.current?.focus();
+      }
+      return;
+    }
+
+    deleteConfirmationWasOpenRef.current = true;
+    // Focus the non-destructive action first to reduce accidental deletion.
+    deleteConfigCancelRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowDeleteConfirmation(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showDeleteConfirmation]);
 
   const parsed = useMemo(() => parseNetworkLabEndpoints(endpointInput), [endpointInput]);
   const totalRequests = parsed.endpoints.length * requestsPerEndpoint;
@@ -243,16 +268,16 @@ export function NetworkTestLab() {
             </select>
           </label>
           <button type="button" className="network-lab-config-button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}><FolderOpen size={13} /> Load</button>
-          <button type="button" className="network-lab-config-button danger" onClick={() => { setShowClearConfirmation(false); setShowDeleteConfirmation(true); }} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
+          <button ref={deleteConfigTriggerRef} type="button" className="network-lab-config-button danger" onClick={() => { setShowClearConfirmation(false); setShowDeleteConfirmation(true); }} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
           <button type="button" className="network-lab-config-button muted" onClick={() => { setShowDeleteConfirmation(false); setShowClearConfirmation(true); }} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
         {showDeleteConfirmation && selectedConfigId && savedConfigs.some((config) => config.id === selectedConfigId) && (
-          <section className="network-lab-delete-confirmation" role="group" aria-labelledby="network-lab-delete-title">
+          <section className="network-lab-delete-confirmation" role="group" aria-labelledby="network-lab-delete-title" aria-describedby="network-lab-delete-description">
             <h3 id="network-lab-delete-title">Delete saved config?</h3>
-            <p><strong>{savedConfigs.find((config) => config.id === selectedConfigId)?.name}</strong> will be permanently removed from this browser. Your current form and completed results will not change.</p>
+            <p id="network-lab-delete-description"><strong>{savedConfigs.find((config) => config.id === selectedConfigId)?.name}</strong> will be permanently removed from this browser. Your current form and completed results will not change.</p>
             <div className="network-lab-delete-actions">
               <button type="button" className="network-lab-config-button danger" onClick={handleConfirmDeleteConfig} disabled={running}>Delete saved config</button>
-              <button type="button" className="network-lab-config-button muted" onClick={() => setShowDeleteConfirmation(false)}>Cancel</button>
+              <button ref={deleteConfigCancelRef} type="button" className="network-lab-config-button muted" onClick={() => setShowDeleteConfirmation(false)}>Cancel</button>
             </div>
           </section>
         )}
