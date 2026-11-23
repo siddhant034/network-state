@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { saveNetworkLabConfig } from "../adapters/network-lab-configs";
 import { createNetworkLabConfigExport } from "../adapters/network-lab-config-transfer";
@@ -19,6 +20,7 @@ const config = saveNetworkLabConfig([], {
 }, 100)[0];
 
 describe("NetworkLabConfigTransfer", () => {
+  afterEach(() => cleanup());
   it("validates an imported file and passes configs to the parent without running them", async () => {
     const onImport = vi.fn();
     render(<NetworkLabConfigTransfer configs={[]} onImport={onImport} />);
