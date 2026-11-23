@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Activity, BookmarkPlus, FlaskConical, FolderOpen, Play, Square, Trash2 } from "lucide-react";
-import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";\nimport { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
+import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
+import { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import "./NetworkTestLab.css";
 
 const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
@@ -30,9 +31,20 @@ export function NetworkTestLab() {
   const [results, setResults] = useState<NetworkLabResult[]>([]);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");\n  const [savedConfigs, setSavedConfigs] = useState<SavedNetworkLabConfig[]>([]);\n  const [configName, setConfigName] = useState("");\n  const [selectedConfigId, setSelectedConfigId] = useState("");
+  const [error, setError] = useState("");
+  const [savedConfigs, setSavedConfigs] = useState<SavedNetworkLabConfig[]>([]);
+  const [configName, setConfigName] = useState("");
+  const [selectedConfigId, setSelectedConfigId] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    try {
+      setSavedConfigs(loadNetworkLabConfigs(window.localStorage));
+    } catch {
+      setError("Local storage is unavailable; saved configs cannot be loaded.");
+    }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -90,7 +102,7 @@ export function NetworkTestLab() {
   const handleLoadConfig = () => {
     const config = savedConfigs.find((item) => item.id === selectedConfigId);
     if (!config) return;
-    setEndpointInput(config.endpoints.join("\\n"));
+    setEndpointInput(config.endpoints.join("\n"));
     setRequestsPerEndpoint(config.options.requestsPerEndpoint);
     setConcurrency(config.options.concurrency);
     setTimeoutSeconds(config.options.timeoutMs / 1_000);
