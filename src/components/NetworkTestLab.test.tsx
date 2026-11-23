@@ -66,6 +66,42 @@ describe("NetworkTestLab", () => {
     expect(mockedRun).not.toHaveBeenCalled();
   });
 
+  it("saves a named config locally and loads its endpoint and workload for replay", async () => {
+    mockedRun.mockResolvedValueOnce([]);
+    render(<NetworkTestLab />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Office checks" }
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Test endpoints" }), {
+      target: { value: "https://api.example.test/health?region=office" }
+    });
+    fireEvent.change(screen.getByLabelText("Requests / endpoint"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Concurrency"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/saved in this browser/);
+    expect(screen.getByRole("option", { name: "Office checks" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Test endpoints" }), {
+      target: { value: "https://other.example.test/" }
+    });
+    fireEvent.change(screen.getByLabelText("Requests / endpoint"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Saved configs"), { target: { value: screen.getByRole("option", { name: "Office checks" }).getAttribute("value") } });
+    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+
+    expect(screen.getByRole("textbox", { name: "Test endpoints" })).toHaveValue("https://api.example.test/health?region=office");
+    expect(screen.getByLabelText("Requests / endpoint")).toHaveValue("5");
+    expect(screen.getByLabelText("Concurrency")).toHaveValue("4");
+
+    fireEvent.click(screen.getByRole("button", { name: "Run test" }));
+    await waitFor(() => expect(mockedRun).toHaveBeenCalledWith(
+      [expect.objectContaining({ label: "api.example.test", url: "https://api.example.test/health?region=office" })],
+      expect.objectContaining({ requestsPerEndpoint: 5, concurrency: 4 }),
+      expect.any(Function)
+    ));
+  });
+
   it("aborts the active run when the user cancels it", async () => {
     let capturedSignal: AbortSignal | undefined;
     let finishRun: (() => void) | undefined;
