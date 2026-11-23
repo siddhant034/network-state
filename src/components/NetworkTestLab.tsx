@@ -42,6 +42,7 @@ export function NetworkTestLab() {
   const [savedConfigs, setSavedConfigs] = useState<SavedNetworkLabConfig[]>([]);
   const [configName, setConfigName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState("");
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
@@ -137,7 +138,7 @@ export function NetworkTestLab() {
     setMessage("Saved config deleted from this browser.");
   };
 
-  const handleClearConfigs = () => {
+  const handleConfirmClearConfigs = () => {
     const storage = getLocalStorage();
     if (!storage || !persistNetworkLabConfigs([], storage)) {
       setError("Could not clear local storage.");
@@ -146,6 +147,7 @@ export function NetworkTestLab() {
     }
     setSavedConfigs([]);
     setSelectedConfigId("");
+    setShowClearConfirmation(false);
     setError("");
     setMessage("All saved configs cleared from this browser.");
   };
@@ -240,8 +242,18 @@ export function NetworkTestLab() {
           </label>
           <button type="button" className="network-lab-config-button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}><FolderOpen size={13} /> Load</button>
           <button type="button" className="network-lab-config-button danger" onClick={handleDeleteConfig} disabled={running || !selectedConfigId}><Trash2 size={13} /> Delete</button>
-          <button type="button" className="network-lab-config-button muted" onClick={handleClearConfigs} disabled={running || savedConfigs.length === 0}>Clear all</button>
+          <button type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(true)} disabled={running || savedConfigs.length === 0}>Clear all</button>
         </div>
+        {showClearConfirmation && (
+          <section className="network-lab-clear-confirmation" role="group" aria-labelledby="network-lab-clear-title">
+            <h3 id="network-lab-clear-title">Clear all saved configs?</h3>
+            <p>This will permanently remove {savedConfigs.length} saved config{savedConfigs.length === 1 ? "" : "s"} from this browser. Your current form and completed results will not be changed.</p>
+            <div className="network-lab-clear-actions">
+              <button type="button" className="network-lab-config-button danger" onClick={handleConfirmClearConfigs}>Delete all saved configs</button>
+              <button type="button" className="network-lab-config-button muted" onClick={() => setShowClearConfirmation(false)}>Cancel</button>
+            </div>
+          </section>
+        )}
         <p className="network-lab-config-privacy">Saved configs stay in this browser's local storage. They include full endpoint URLs (including paths and query strings) so they can be replayed. Do not save URLs containing secrets; delete configs on shared devices.</p>
         <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} disabled={running} />
       </div>
