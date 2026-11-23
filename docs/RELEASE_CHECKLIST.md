@@ -21,7 +21,7 @@ CI runs a dependency-free verifier over every YAML workflow under `.github/workf
 
 ## Least-privilege workflow permissions
 
-CI audits workflow token permissions and rejects broad presets, workflow-level grants beyond `contents: read`, and `pull_request_target`. Job-level permission mappings are checked as complete sets: read-only `contents: read` is permitted for build jobs, while write access is limited to the Pages deploy job's exact `pages: write` and `id-token: write` grants. Duplicate and unsupported entries fail the audit. The policy scanner and its tests run in PR CI and before the Pages build; unsupported syntax must fail closed rather than be skipped.
+CI audits workflow token permissions and rejects broad presets, workflow-level grants beyond `contents: read`, and `pull_request_target`. Job-level permission mappings are checked as complete sets: read-only `contents: read` is permitted for build jobs, while write access is limited to the Pages deploy job's exact `pages: write` and `id-token: write` grants. Duplicate and unsupported entries fail the audit. The policy scanner and its tests run in PR CI and before the Pages build; unsupported syntax must fail closed rather than be skipped. The trigger audit checks the complete top-level `on` block, including block-sequence event lists and flow-style event collections, so `pull_request_target` cannot evade the policy by changing YAML representation.
 
 ## 2. Reproducible dependencies and security
 
