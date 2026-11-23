@@ -49,7 +49,10 @@ describe("portable saved network lab configs", () => {
     })).ok).toBe(false);
 
     const duplicate = config("two", "one");
-    expect(parseNetworkLabConfigExport(createNetworkLabConfigExport([valid, duplicate], 200)).ok).toBe(false);
+    expect(parseNetworkLabConfigExport(JSON.stringify({
+      format: "network-state-network-lab-configs", schemaVersion: 1, exportedAt: 200,
+      configs: [valid, duplicate]
+    })).ok).toBe(false);
   });
 
   it("merges by name, preserves local identity, and adds new configs", () => {
