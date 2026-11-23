@@ -34,6 +34,17 @@ test("rejects pull_request_target even with read-only permissions", () => {
   assert.throws(() => assertWorkflowPermissions(base.replace("pull_request:", "pull_request_target:")), /pull_request_target/);
 });
 
+test("rejects pull_request_target in block-sequence and flow event syntax", () => {
+  const sequence = base.replace("  pull_request:", "  - pull_request_target");
+  assert.throws(() => assertWorkflowPermissions(sequence), /pull_request_target/);
+
+  const flow = base.replace("on:" + newline + "  pull_request:", "on: [push, 'pull_request_target']");
+  assert.throws(() => assertWorkflowPermissions(flow), /pull_request_target/);
+
+  const quotedMapping = base.replace("  pull_request:", "  'pull_request_target':");
+  assert.throws(() => assertWorkflowPermissions(quotedMapping), /pull_request_target/);
+});
+
 test("allows explicit read-only permissions on a build job", () => {
   const build = base.replace("  verify:", "  build:" + newline + "    permissions:" + newline + "      contents: read" + newline + "  verify:");
   assert.equal(assertWorkflowPermissions(build), true);
