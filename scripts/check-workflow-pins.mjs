@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WORKFLOWS_DIR = join(fileURLToPath(new URL("..", import.meta.url)), ".github", "workflows");
@@ -48,7 +48,7 @@ export async function verifyWorkflowDirectory(directory = WORKFLOWS_DIR) {
   return { workflowCount: files.length, actionCount };
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
     const result = await verifyWorkflowDirectory();
     console.log(`Workflow pin check passed: ${result.actionCount} immutable action references across ${result.workflowCount} workflow files`);
