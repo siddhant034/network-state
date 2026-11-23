@@ -19,6 +19,13 @@ jobs:
 
 const newline = String.fromCharCode(10);
 
+test("requires one explicit, non-empty top-level trigger declaration", () => {
+  assert.throws(() => assertWorkflowPermissions(base.replace("on:" + newline + "  pull_request:" + newline, "")), /exactly one top-level on trigger block/);
+  assert.throws(() => assertWorkflowPermissions(base.replace("on:" + newline + "  pull_request:", "on: []")), /at least one explicit workflow event/);
+  assert.throws(() => assertWorkflowPermissions(base.replace("on:" + newline + "  pull_request:", "on: |" + newline + "  pull_request")), /unsupported or aliased trigger YAML/);
+  assert.throws(() => assertWorkflowPermissions(base.replace("on:" + newline + "  pull_request:", "on: [push]" + newline + "on: [workflow_dispatch]")), /exactly one top-level on trigger block/);
+});
+
 test("accepts explicit read-only workflow permissions", () => {
   assert.equal(assertWorkflowPermissions(base), true);
 });
