@@ -24,10 +24,14 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+      - name: Verify immutable GitHub Actions pins
+        run: node scripts/check-workflow-pins.mjs
       - name: Install dependencies from the committed lockfile
         run: npm ci --no-audit --no-fund
       - name: Run tests
         run: npm test
+      - name: Test workflow pin policy
+        run: npm run test:workflow-pins
       - name: Test published-site smoke verifier
         run: node --test scripts/pages-smoke-test.test.mjs scripts/pages-build-smoke-test.test.mjs
       - name: Build
