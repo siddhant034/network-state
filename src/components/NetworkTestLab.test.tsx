@@ -288,7 +288,7 @@ describe("NetworkTestLab", () => {
     expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
     expect(select).toBeEnabled();
     expect(screen.getByRole("alert")).toHaveTextContent(/changed to invalid data in another tab/i);
-    expect(screen.queryByRole("status")).not.toHaveTextContent(/updated in another tab/i);
+    expect(screen.queryByText(/updated in another tab/i)).not.toBeInTheDocument();
   });
 
   it("aborts the active run when the user cancels it", async () => {
