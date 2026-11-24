@@ -120,7 +120,7 @@ export function installFetchInstrumentation(
       const response = await originalFetch.call(host, input, init);
       const outcome: RequestOutcome = response.status === 0
         ? "network-error"
-        : response.status >= 400
+        : response.status < 200 || response.status >= 300
           ? "http-error"
           : "success";
       emit(options, createEvent("fetch", metadata, outcome, response.status || null, startedAt, now));
@@ -212,7 +212,7 @@ export function installXhrInstrumentation(
       const outcome = terminalOutcome ?? (
         status === null
           ? "network-error"
-          : status >= 400
+          : status < 200 || status >= 300
             ? "http-error"
             : "success"
       );
