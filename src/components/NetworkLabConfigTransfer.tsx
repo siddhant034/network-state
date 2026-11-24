@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Download, Upload } from "lucide-react";
 import type { SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import {
@@ -26,6 +26,8 @@ interface NetworkLabConfigTransferProps {
 
 export function NetworkLabConfigTransfer({ configs, onImport, disabled = false }: NetworkLabConfigTransferProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelImportRef = useRef<HTMLButtonElement>(null);
+  const previewWasOpenRef = useRef(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [pendingImport, setPendingImport] = useState<SavedNetworkLabConfig[] | null>(null);
@@ -34,6 +36,30 @@ export function NetworkLabConfigTransfer({ configs, onImport, disabled = false }
     local.name.toLowerCase() === incoming.name.toLowerCase() || local.id === incoming.id
   )).length ?? 0;
   const addedCount = (pendingImport?.length ?? 0) - matchedCount;
+
+  useEffect(() => {
+    if (!pendingImport) {
+      if (previewWasOpenRef.current) {
+        previewWasOpenRef.current = false;
+        inputRef.current?.focus();
+      }
+      return;
+    }
+
+    previewWasOpenRef.current = true;
+    // Put keyboard users on the safe, non-destructive action first.
+    cancelImportRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPendingImport(null);
+        setError("");
+        setStatus("Import cancelled. Your saved configs were not changed.");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pendingImport]);
 
   const handleExport = () => {
     try {
@@ -117,9 +143,9 @@ export function NetworkLabConfigTransfer({ configs, onImport, disabled = false }
       {error && <p className="network-lab-config-transfer-error" role="alert">{error}</p>}
       {status && <p className="network-lab-config-transfer-status" role="status">{status}</p>}
       {pendingImport && (
-        <section className="network-lab-config-import-preview" aria-label="Import preview">
+        <section className="network-lab-config-import-preview" role="region" aria-labelledby="network-lab-config-import-title" aria-describedby="network-lab-config-import-warning">
           <div className="network-lab-config-import-preview-heading">
-            <strong>Review import</strong>
+            <strong id="network-lab-config-import-title" tabIndex={-1}>Review import</strong>
             <span>{pendingImport.length} config{pendingImport.length === 1 ? "" : "s"}</span>
           </div>
           <p>
@@ -138,12 +164,12 @@ export function NetworkLabConfigTransfer({ configs, onImport, disabled = false }
               );
             })}
           </ul>
-          <p className="network-lab-config-import-warning">
-            Applying replaces settings for matching configs. Full endpoint URLs are sensitive. Review before applying; imported configs never run automatically.
+          <p id="network-lab-config-import-warning" className="network-lab-config-import-warning">
+            Applying replaces settings for matching configs. Full endpoint URLs are sensitive. Review before applying; imported configs never run automatically. Press Escape to cancel.
           </p>
           <div className="network-lab-config-import-actions">
             <button type="button" className="network-lab-config-button" onClick={handleApplyImport} disabled={disabled}>Apply import</button>
-            <button type="button" className="network-lab-config-button muted" onClick={handleCancelImport}>Cancel</button>
+            <button ref={cancelImportRef} type="button" className="network-lab-config-button muted" onClick={handleCancelImport}>Cancel</button>
           </div>
         </section>
       )}
