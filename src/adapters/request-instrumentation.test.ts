@@ -55,6 +55,18 @@ describe("installFetchInstrumentation", () => {
     stop();
   });
 
+  it("classifies redirects and other non-2xx HTTP responses separately", async () => {
+    const original = vi.fn().mockResolvedValue({ status: 302 } as Response) as unknown as typeof fetch;
+    const host = makeFetch(original);
+    const events: InstrumentedRequestEvent[] = [];
+    const stop = installFetchInstrumentation({ onRequest: (event) => events.push(event) }, host);
+
+    await host.fetch("/redirect");
+
+    expect(events[0]).toMatchObject({ outcome: "http-error", status: 302 });
+    stop();
+  });
+
   it("records transport failures and rethrows the original error", async () => {
     const failure = new TypeError("Failed to fetch");
     const original = vi.fn().mockRejectedValue(failure) as unknown as typeof fetch;
@@ -215,6 +227,22 @@ describe("installXhrInstrumentation", () => {
       ["http://localhost:3000/first", "aborted"],
       ["http://localhost:3000/second", "success"]
     ]);
+    stop();
+  });
+
+  it("classifies non-2xx XHR responses as HTTP errors", () => {
+    const events: InstrumentedRequestEvent[] = [];
+    const stop = installXhrInstrumentation(
+      { onRequest: (event) => events.push(event) },
+      FakeXhr as unknown as typeof XMLHttpRequest
+    );
+    const xhr = new FakeXhr();
+
+    xhr.open("GET", "/redirect");
+    xhr.send();
+    xhr.complete(302);
+
+    expect(events[0]).toMatchObject({ outcome: "http-error", status: 302 });
     stop();
   });
 

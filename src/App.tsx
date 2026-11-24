@@ -3,6 +3,8 @@ import { Activity, ArrowDown, ArrowUpRight, Check, CircleHelp, Clock3, Gauge, Gl
 import { createNetworkMonitor } from "./core/network-monitor";
 import type { NetworkEvent } from "./core/types";
 import { appendLatencySample, buildLatencyChartPoints, filterLatencySamples, summarizeLatency, type LatencySample, type LatencySourceFilter, type LatencyWindow } from "./analytics/latency";
+import { appendReliabilityObservation, type ReliabilityObservation } from "./analytics/reliability";
+import { ReliabilityPanel } from "./components/ReliabilityPanel";
 import { runReachabilityProbe, type ReachabilityProbeResult } from "./adapters/reachability-probe";
 import { installRequestInstrumentation, type InstrumentedRequestEvent } from "./adapters/request-instrumentation";
 
@@ -28,6 +30,7 @@ function App() {
   const [probeResult, setProbeResult] = useState<ReachabilityProbeResult | null>(null);
   const [probeHistory, setProbeHistory] = useState<ReachabilityProbeResult[]>([]);
   const [latencySamples, setLatencySamples] = useState<LatencySample[]>([]);
+  const [reliabilityObservations, setReliabilityObservations] = useState<ReliabilityObservation[]>([]);
   const [latencyWindow, setLatencyWindow] = useState<LatencyWindow>("30m");
   const [latencySource, setLatencySource] = useState<LatencySourceFilter>("all");
   const [requestMonitoring, setRequestMonitoring] = useState(false);
@@ -49,6 +52,11 @@ function App() {
     const installation = installRequestInstrumentation({
       onRequest(event) {
         setRequestEvents((current) => [event, ...current].slice(0, 100));
+        setReliabilityObservations((current) => appendReliabilityObservation(current, {
+          timestamp: event.timestamp,
+          source: event.transport,
+          outcome: event.outcome
+        }));
         if (event.outcome === "success" || event.outcome === "http-error") {
           setLatencySamples((current) => appendLatencySample(current, {
             timestamp: event.timestamp,
@@ -81,6 +89,11 @@ function App() {
       if (result.status === "aborted") return;
       setProbeResult(result);
       setProbeHistory((current) => [result, ...current].slice(0, 20));
+      setReliabilityObservations((current) => appendReliabilityObservation(current, {
+        timestamp: result.timestamp,
+        source: "probe",
+        outcome: result.status === "reachable" ? "success" : result.status
+      }));
       if (result.status === "reachable" || result.status === "http-error") {
         setLatencySamples((current) => appendLatencySample(current, {
           timestamp: result.timestamp,
@@ -288,6 +301,8 @@ function App() {
           <span>{latencySummary.count ? "Newest samples first in history" : "No latency data retained yet"}</span>
         </div>
       </section>
+
+      <ReliabilityPanel observations={reliabilityObservations} window={latencyWindow} />
 
       <section className="request-panel" aria-labelledby="request-title">
         <div className="request-panel-heading">
