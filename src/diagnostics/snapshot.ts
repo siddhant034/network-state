@@ -5,6 +5,7 @@ import type { ReliabilityObservation } from "../analytics/reliability";
 import type { InstrumentedRequestEvent } from "../adapters/request-instrumentation";
 import type { ReachabilityProbeResult } from "../adapters/reachability-probe";
 import type { NetworkLabResult } from "../adapters/network-test-lab";
+import { redactSensitivePath } from "../privacy/url-redaction";
 
 export const DIAGNOSTICS_FORMAT = "network-state-diagnostics" as const;
 export const DIAGNOSTICS_SCHEMA_VERSION = 1 as const;
@@ -73,7 +74,7 @@ function sanitizeUrl(value: string, includePaths: boolean): string {
     if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || !url.hostname) {
       return "[redacted]";
     }
-    return includePaths ? url.origin + url.pathname : url.host;
+    return includePaths ? url.origin + redactSensitivePath(url.pathname) : url.host;
   } catch {
     return "[redacted]";
   }

@@ -31,6 +31,18 @@ describe("installFetchInstrumentation", () => {
     expect(host.fetch).toBe(original);
   });
 
+  it("redacts secret-bearing path segments before retaining request URLs", async () => {
+    const original = vi.fn().mockResolvedValue({ status: 200 } as Response) as unknown as typeof fetch;
+    const host = makeFetch(original);
+    const events: InstrumentedRequestEvent[] = [];
+    const stop = installFetchInstrumentation({ onRequest: (event) => events.push(event) }, host);
+
+    await host.fetch("https://api.example.test/session/private-id/reset/one-time-token?still=private");
+
+    expect(events[0]?.url).toBe("https://api.example.test/session/[redacted]/reset/[redacted]");
+    stop();
+  });
+
   it("ignores non-HTTP URL payloads instead of treating local responses as network activity", async () => {
     const original = vi.fn().mockResolvedValue({ status: 200 } as Response) as unknown as typeof fetch;
     const host = makeFetch(original);

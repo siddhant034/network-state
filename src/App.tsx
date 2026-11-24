@@ -173,9 +173,11 @@ function App() {
   const statusClass = connection.status === "online" ? "good" : connection.status === "unstable" ? "warn" : "bad";
 
   return (
-    <main className="app-shell">
+    <>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#" aria-label="Network State home">
+        <a className="brand" href="#" aria-label="networkstate home">
           <span className="brand-mark"><Activity size={19} strokeWidth={2.4} /></span>
           <span>network<span className="brand-light">state</span></span>
         </a>
@@ -186,6 +188,7 @@ function App() {
         </div>
       </header>
 
+      <main id="main-content" tabIndex={-1}>
       <section className="intro">
         <div>
           <div className="eyebrow"><span /> BROWSER NETWORK OBSERVABILITY</div>
@@ -408,7 +411,9 @@ function App() {
         </div>
       </section>
       <footer className="footer"><span>NETWORK STATE <b>·</b> BUILT FOR THE UNRELIABLE WEB</span><span>Browser signals are estimates, not guarantees <ArrowUpRight size={12} /></span></footer>
-    </main>
+      </main>
+      </div>
+    </>
   );
 }
 

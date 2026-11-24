@@ -115,7 +115,7 @@ export function DiagnosticsExport({
           />
           <span>
             Include URL paths
-            <small>Optional. Paths can contain identifiers. Query strings, fragments, and credentials are always removed.</small>
+            <small>Optional. Common secret-bearing path segments are redacted, but paths may still contain identifiers. Query strings, fragments, and credentials are always removed.</small>
           </span>
         </label>
         <div className="diagnostics-export-actions">

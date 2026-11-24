@@ -1,3 +1,5 @@
+import { redactSensitivePath } from "../privacy/url-redaction";
+
 export type RequestTransport = "fetch" | "xhr";
 export type RequestOutcome = "success" | "http-error" | "network-error" | "timeout" | "aborted";
 
@@ -33,7 +35,7 @@ function sanitizeUrl(value: string | URL): string {
     const base = typeof location !== "undefined" ? location.href : "http://localhost/";
     const url = new URL(String(value), base);
     if (url.protocol !== "http:" && url.protocol !== "https:") return url.protocol + "[redacted]";
-    return (url.origin + url.pathname).slice(0, 240);
+    return (url.origin + redactSensitivePath(url.pathname)).slice(0, 240);
   } catch {
     return "Unknown URL";
   }
