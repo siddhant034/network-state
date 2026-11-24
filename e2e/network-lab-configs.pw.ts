@@ -119,8 +119,11 @@ test("clearing configs in one tab clears the other tab without exposing endpoint
   await expect(otherTab.locator(".network-lab-message")).not.toContainText("/cross-tab/clear");
   await expect(otherTab.locator(".network-lab-message")).not.toContainText("clear-private");
 
-  const stored = await otherTab.evaluate((key) => window.localStorage.getItem(key), storageKey);
-  expect(stored).toBeNull();
+  const stored = await otherTab.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as { configs: unknown[] } : null;
+  }, storageKey);
+  expect(stored?.configs).toEqual([]);
 
   // Clearing configs only synchronizes browser-local saved state; it never runs a test.
   await expect(otherTab.getByRole("button", { name: "Run test" })).toBeEnabled();
