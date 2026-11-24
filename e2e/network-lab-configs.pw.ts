@@ -114,7 +114,7 @@ test("clearing configs in one tab clears the other tab without exposing endpoint
 
   await expect(otherTab.getByRole("option", { name: "Cross-tab clear config" })).toHaveCount(0);
   await expect(otherTab.locator(".network-lab-message")).toContainText(
-    "Saved configs were cleared in another tab."
+    "Saved configs updated in another tab."
   );
   await expect(otherTab.locator(".network-lab-message")).not.toContainText("/cross-tab/clear");
   await expect(otherTab.locator(".network-lab-message")).not.toContainText("clear-private");
