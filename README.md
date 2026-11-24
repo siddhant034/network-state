@@ -48,7 +48,7 @@ npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab save, delete, clear, and malformed-storage recovery, keyboard cancellation of deletion, and import preview/apply privacy behavior. CI runs a separate browser matrix so an engine's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
+The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab save, delete, clear, and malformed-storage recovery, keyboard cancellation of deletion, and import preview/apply privacy behavior. A dedicated iPhone 13 WebKit project additionally verifies touch input, the mobile viewport, overflow, and a save/load workflow using touch taps. CI runs separate desktop-engine and iPhone-WebKit jobs so one project's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
 
 ## Browser API limitations
 
@@ -86,8 +86,8 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Exportable diagnostics snapshot (versioned JSON, bounded histories, destination/detail redaction)
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [x] Save and replay named testing-lab configurations (explicit local save, versioned storage, bounded count, validated load/delete)
-- [x] Cross-browser smoke coverage for saved-config persistence, deletion confirmation, import privacy, and narrow mobile layout in Chromium, Firefox, and WebKit
-- [ ] Full manual accessibility review and additional browser/device coverage
+- [x] Cross-browser saved-config smoke coverage for Chromium, Firefox, and WebKit, plus iPhone WebKit touch-emulation coverage for mobile save/load and overflow
+- [ ] Full manual accessibility review and additional physical-device coverage
 - [ ] Public demo deployment
 
 ## License
