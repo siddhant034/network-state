@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import { createNetworkLabConfigExport } from "../adapters/network-lab-config-transfer";
 import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
@@ -61,7 +61,7 @@ describe("NetworkLabConfigTransfer", () => {
     await screen.findByRole("region", { name: "Review import" });
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("region", { name: "Review import" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Review import" })).not.toBeInTheDocument());
     expect(await screen.findByRole("status")).toHaveTextContent(/Import cancelled/);
     expect(input).toHaveFocus();
     expect(onImport).not.toHaveBeenCalled();
