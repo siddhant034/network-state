@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Activity, BookmarkPlus, FlaskConical, FolderOpen, Play, Square, Trash2 } from "lucide-react";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
-import { loadNetworkLabConfigs, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
+import { loadNetworkLabConfigs, NETWORK_LAB_CONFIG_STORAGE_KEY, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
 import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
 import "./NetworkLabConfigTransfer.css";
@@ -59,6 +59,27 @@ export function NetworkTestLab() {
     } catch {
       setError("Local storage is unavailable; saved configs cannot be loaded.");
     }
+  }, []);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== NETWORK_LAB_CONFIG_STORAGE_KEY && event.key !== null) return;
+      const storage = getLocalStorage();
+      if (!storage || (event.storageArea && event.storageArea !== storage)) return;
+
+      const next = loadNetworkLabConfigs(storage);
+      setSavedConfigs(next);
+      setSelectedConfigId((current) => next.some((config) => config.id === current) ? current : "");
+      setShowDeleteConfirmation(false);
+      setShowClearConfirmation(false);
+      setError("");
+      setMessage(event.key === null
+        ? "Saved configs were cleared in another tab."
+        : "Saved configs updated in another tab.");
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   useEffect(() => {
