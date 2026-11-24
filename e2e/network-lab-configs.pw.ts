@@ -229,7 +229,6 @@ test("saved-config controls fit and remain usable at a narrow mobile viewport", 
   const configNameInput = page.getByLabel("Config name");
   const importInput = page.getByLabel("Import saved configs");
   const configPanel = page.locator(".network-lab-panel");
-  const transferControls = page.locator(".network-lab-config-transfer");
 
   await expect(configPanel).toBeVisible();
   await expect(endpointInput).toBeVisible();
