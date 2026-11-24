@@ -114,7 +114,7 @@ test("saved-config controls fit and remain usable at a narrow 320px viewport", a
     if (request.url().startsWith("https://api.example.test/")) fixtureRequests.push(request.url());
   });
 
-  await expect(lab.locator(".network-lab-panel")).toBeVisible();
+  await expect(lab).toBeVisible();
   await expect(lab.getByLabel("Test endpoints")).toBeVisible();
   await expect(lab.getByLabel("Configuration name")).toBeVisible();
   await expect(lab.getByLabel("Saved configurations")).toBeVisible();
