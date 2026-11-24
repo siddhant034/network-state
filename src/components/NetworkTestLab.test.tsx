@@ -199,7 +199,9 @@ describe("NetworkTestLab", () => {
     await screen.findByRole("status");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/deleted from this device/);
+    expect(screen.getByRole("group", { name: "Delete saved config?" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Delete saved config" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/deleted from this device/));
     expect(window.localStorage.getItem("network-state:network-lab-configs:v1")).toBe("[]");
   });
 

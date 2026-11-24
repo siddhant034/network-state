@@ -245,3 +245,45 @@ export function deleteNetworkLabConfig(
     return { ok: false, error: "The browser could not update saved configurations." };
   }
 }
+
+
+/**
+ * Atomically replace the saved configuration list after validating every record.
+ * Used by portable import so malformed files cannot partially update local storage.
+ */
+export function replaceSavedNetworkLabConfigs(
+  configs: SavedNetworkLabConfig[],
+  storage: StorageLike | null = getBrowserStorage()
+): { ok: true; configs: SavedNetworkLabConfig[] } | { ok: false; error: string } {
+  if (!storage) return { ok: false, error: "Local storage is unavailable in this browser context." };
+  if (!Array.isArray(configs) || configs.length > MAX_SAVED_NETWORK_LAB_CONFIGS) {
+    return { ok: false, error: "The saved-config limit is ten." };
+  }
+
+  const normalized: SavedNetworkLabConfig[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const item of configs) {
+    const result = normalizeConfig(item, false);
+    if (!result) return { ok: false, error: "A saved configuration contains invalid settings or endpoint data." };
+    const id = result.config.id;
+    const name = result.config.name.toLocaleLowerCase();
+    if (ids.has(id) || names.has(name)) {
+      return { ok: false, error: "Saved configuration identifiers and names must be unique." };
+    }
+    ids.add(id);
+    names.add(name);
+    normalized.push(result.config);
+  }
+
+  const serialized = JSON.stringify(normalized);
+  if (serialized.length > MAX_NETWORK_LAB_CONFIG_STORAGE_CHARS) {
+    return { ok: false, error: "These configurations exceed the local storage limit." };
+  }
+  try {
+    storage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, serialized);
+    return { ok: true, configs: normalized };
+  } catch {
+    return { ok: false, error: "The browser could not replace saved configurations. Check local storage space." };
+  }
+}

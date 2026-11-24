@@ -62,3 +62,17 @@
 
 @media(max-width:700px){.network-lab-panel{padding:17px;margin-bottom:28px}.network-lab-heading{align-items:flex-start}.network-lab-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.network-lab-actions{align-items:flex-start;flex-direction:column}.network-lab-buttons{width:100%}.network-lab-run,.network-lab-cancel{flex:1}.network-lab-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.network-lab-controls{grid-template-columns:1fr}.network-lab-endpoints>span{align-items:flex-start;flex-direction:column;gap:4px}}
+
+
+.network-lab-configs .network-lab-config-transfer{margin-top:2px}
+
+.network-lab-clear-configs{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 11px;border:1px solid #344756;border-radius:7px;background:#1a2935;color:#c0d1df;font:600 9px Manrope,sans-serif;white-space:nowrap;cursor:pointer}
+.network-lab-clear-configs:disabled{opacity:.4;cursor:not-allowed}
+.network-lab-config-confirmation{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #584047;border-radius:8px;background:#20191e}
+.network-lab-config-confirmation h3{margin:0;color:#e9c1c0;font-size:11px}
+.network-lab-config-confirmation p{margin:0;color:#b9a6ab;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.network-lab-config-confirmation-actions{display:flex;flex-wrap:wrap;gap:8px}
+.network-lab-config-confirmation-actions button{min-height:34px;padding:0 10px;border:1px solid #344756;border-radius:7px;background:#1a2935;color:#c0d1df;font:600 9px Manrope,sans-serif;cursor:pointer}
+.network-lab-config-confirmation-actions .network-lab-delete-config{border-color:#584047;background:#302329;color:#e5b4b1}
+.network-lab-config-confirmation-actions button:disabled{opacity:.4;cursor:not-allowed}
+.network-lab-config-confirmation-actions button:focus-visible{outline:2px solid #f0a6a6;outline-offset:3px}
