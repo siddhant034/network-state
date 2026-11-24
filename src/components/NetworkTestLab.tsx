@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Activity, FlaskConical, FolderOpen, Play, Save, Square, Trash2 } from "lucide-react";
-import { deleteNetworkLabConfig, loadSavedNetworkLabConfigs, saveNetworkLabConfig } from "../adapters/network-lab-configs";
+import {
+  deleteNetworkLabConfig,
+  inspectSavedNetworkLabConfigs,
+  loadSavedNetworkLabConfigs,
+  NETWORK_LAB_CONFIG_STORAGE_KEY,
+  saveNetworkLabConfig
+} from "../adapters/network-lab-configs";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 import "./NetworkTestLab.css";
 
@@ -39,6 +45,8 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
   const [configError, setConfigError] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  const selectedConfigIdRef = useRef(selectedConfigId);
+  selectedConfigIdRef.current = selectedConfigId;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -46,6 +54,44 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
       mountedRef.current = false;
       controllerRef.current?.abort();
     };
+  }, []);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== NETWORK_LAB_CONFIG_STORAGE_KEY && event.key !== null) return;
+
+      let storage: Storage;
+      try {
+        storage = window.localStorage;
+      } catch {
+        setConfigError("Saved configurations could not be refreshed because local storage is unavailable.");
+        setConfigMessage("");
+        return;
+      }
+      if (event.storageArea && event.storageArea !== storage) return;
+
+      const inspected = inspectSavedNetworkLabConfigs(storage);
+      if (inspected.status === "invalid" || inspected.status === "unavailable") {
+        setConfigError("Saved configurations changed to invalid data in another tab. The last valid list is still shown.");
+        setConfigMessage("");
+        return;
+      }
+
+      const next = inspected.configs;
+      setSavedConfigs(next);
+      if (!next.some((config) => config.id === selectedConfigIdRef.current)) {
+        selectedConfigIdRef.current = "";
+        setSelectedConfigId("");
+        setConfigName("");
+      }
+      setConfigError("");
+      setConfigMessage(event.key === null || event.newValue === null
+        ? "Saved configurations were cleared in another tab."
+        : "Saved configurations updated in another tab.");
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   useEffect(() => {
