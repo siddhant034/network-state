@@ -239,6 +239,34 @@ describe("NetworkTestLab", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/cleared in another tab/);
   });
 
+  it("clears a stale selection and confirmation after another tab deletes the selected config", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Shared config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    const select = screen.getByLabelText("Saved configs");
+    const option = screen.getByRole("option", { name: "Shared config" });
+    fireEvent.change(select, { target: { value: option.getAttribute("value") } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByRole("group", { name: "Delete saved config?" })).toBeInTheDocument();
+
+    const emptyRecord = JSON.stringify({ schemaVersion: 1, configs: [] });
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, emptyRecord);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: emptyRecord,
+      storageArea: window.localStorage
+    }));
+
+    await waitFor(() => expect(select).toBeDisabled());
+    expect(screen.queryByRole("group", { name: "Delete saved config?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Shared config" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
+  });
+
   it("aborts the active run when the user cancels it", async () => {
     let capturedSignal: AbortSignal | undefined;
     let finishRun: (() => void) | undefined;
