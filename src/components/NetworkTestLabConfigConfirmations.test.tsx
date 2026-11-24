@@ -65,7 +65,7 @@ describe("saved-config destructive confirmations", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs", exact: true }));
     expect(await screen.findByRole("status")).toHaveTextContent(/cleared from this device/i);
     expect(readSaved()).toHaveLength(0);
-    expect(screen.getByLabelText("Saved configurations")).toHaveFocus();
+    expect(screen.getByLabelText("Configuration name")).toHaveFocus();
     expect(screen.getByLabelText("Configuration name")).toHaveValue("Remote config");
     expect(screen.getByLabelText("Test endpoints")).toHaveValue("https://api.example.test/health");
   });
