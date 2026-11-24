@@ -25,21 +25,38 @@ checks saved-config persistence and same-origin cross-tab save, delete, clear,
 and malformed-storage recovery, keyboard confirmation focus and cancellation,
 import preview privacy, and a 320px mobile viewport check for saved-config
 controls and horizontal overflow. The iPhone project additionally verifies
-coarse-pointer/touch support, a 390×844 emulated screen, no horizontal overflow,
-and saving/loading a config through touch taps. The iPhone device profile reports a 390×844 emulated screen; WebKit's `window.innerHeight` may be smaller while browser chrome is reserved. The test checks the emulated screen height and bounds the effective layout viewport instead of assuming they are identical. Cross-tab clear removes the saved
-list in other open tabs without exposing endpoint paths or query values. When
-another tab writes malformed storage, the receiving tab preserves its last
-valid list and shows a generic error without exposing raw storage or endpoint
-details. Delete and clear confirmations focus Cancel first and restore focus to
-their trigger after Escape. Import preview focuses Cancel first and returns
-focus to the file input after Escape or Apply import.
+coarse-pointer behavior, a 390×844 emulated screen, no horizontal overflow,
+and saving/loading a config through touch taps. It observes a real `touchstart`
+event on the Save control so a successful click alone cannot masquerade as touch
+coverage. Playwright's WebKit emulation reports `navigator.maxTouchPoints` as
+zero in this runner, so the test relies on the actual touch event and the
+device's coarse-pointer media query instead. The iPhone device profile reports
+a 390×844 emulated screen; WebKit's `window.innerHeight` may be smaller while
+browser chrome is reserved. The test checks the emulated screen height and
+bounds the effective layout viewport instead of assuming they are identical.
+
+Cross-tab clear removes the saved list in other open tabs without exposing
+endpoint paths or query values. When another tab writes malformed storage, the
+receiving tab preserves its last valid list and shows a generic error without
+exposing raw storage or endpoint details. Delete and clear confirmations focus
+Cancel first and restore focus to their trigger after Escape. Import preview
+focuses Cancel first and returns focus to the file input after Escape or Apply
+import.
 
 Saved endpoint URLs remain in local storage and are not printed into the
 preview. The import fixture is only written to local storage after explicit
 **Apply import** confirmation. Imported configs never run automatically.
 
-A failure in one engine/project does not cancel the other matrix jobs, so CI
-reports browser-specific compatibility results rather than hiding later
+The unit/build and browser workflows run on pull requests and on pushes to
+`main` or `test/**` branches. The feature-branch push trigger ensures stacked
+draft PR branches are validated even when the base branch does not yet contain
+a newly introduced workflow. Workflow actions are pinned to immutable commit
+SHAs. A failure in one engine/project does not cancel the other matrix jobs, so
+CI reports browser-specific compatibility results rather than hiding later
 failures. All mobile fixtures use reserved `.test` endpoints; the touch test
 only saves and loads browser-local settings and does not issue a diagnostic
 request.
+
+This is emulated mobile browser coverage, not physical-device certification.
+A real iPhone/iPad pass and a full manual accessibility/privacy review remain
+release checks.
