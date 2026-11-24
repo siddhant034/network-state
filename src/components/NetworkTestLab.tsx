@@ -6,7 +6,8 @@ import {
   loadSavedNetworkLabConfigs,
   NETWORK_LAB_CONFIG_STORAGE_KEY,
   persistSavedNetworkLabConfigs,
-  saveNetworkLabConfig
+  saveNetworkLabConfig,
+  type SavedNetworkLabConfig
 } from "../adapters/network-lab-configs";
 import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
 import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
