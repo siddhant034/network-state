@@ -57,7 +57,7 @@ export function NetworkTestLab() {
     const read = inspectNetworkLabConfigs(window.localStorage);
     setSavedConfigs(read.configs);
     if (read.status === "invalid") {
-      setError("Saved config storage contains invalid data. The valid entries are shown; review or clear the saved configs before saving again.");
+      setError("Saved config storage is invalid. Valid entries, if any, are shown; saving a config will replace the malformed record with a validated record.");
     } else if (read.status === "unavailable") {
       setError("Local storage is unavailable; saved configs cannot be loaded.");
     }
@@ -72,7 +72,7 @@ export function NetworkTestLab() {
       const read = inspectNetworkLabConfigs(storage);
       if (read.status === "invalid" || read.status === "unavailable") {
         setError(read.status === "invalid"
-          ? "Saved config storage changed to invalid data in another tab. Your last valid list is preserved; inspect or clear the saved configs before saving again."
+          ? "Saved config storage changed to invalid data in another tab. Your last valid list is preserved; a successful save will replace it with a validated record."
           : "Saved config storage is unavailable. Your last valid list is preserved.");
         setMessage("");
         return;
