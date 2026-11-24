@@ -44,7 +44,11 @@ Run checks:
 ```bash
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
+
+The Playwright suite launches a real Chromium browser and checks saved-config persistence, keyboard cancellation of deletion, and import preview/apply privacy behavior. See [browser smoke test notes](e2e/README.md) for scope and setup.
 
 ## Browser API limitations
 
