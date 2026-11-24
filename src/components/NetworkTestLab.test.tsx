@@ -28,6 +28,7 @@ const sampleResult: NetworkLabResult = {
 describe("NetworkTestLab", () => {
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -77,6 +78,61 @@ describe("NetworkTestLab", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/without embedded credentials/);
     expect(screen.getByRole("button", { name: "Run test" })).toBeDisabled();
     expect(mockedRun).not.toHaveBeenCalled();
+  });
+
+
+  it("saves named configurations locally, redacts query data, and reloads them", async () => {
+    const firstRender = render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "API smoke test" }
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Test endpoints" }), {
+      target: { value: "https://api.example.test/health?token=private-value#section" }
+    });
+    fireEvent.change(screen.getByLabelText("Concurrency"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/Query strings and fragments were removed/i);
+    expect(screen.getByRole("textbox", { name: "Test endpoints" })).toHaveValue("https://api.example.test/health");
+    const stored = window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "";
+    expect(stored).toContain("API smoke test");
+    expect(stored).not.toContain("private-value");
+
+    fireEvent.click(screen.getByRole("button", { name: "New configuration" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "Staging API" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+    await screen.findByRole("status");
+    const storedConfigs = JSON.parse(window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "[]") as Array<{ name: string }>;
+    expect(storedConfigs).toHaveLength(2);
+
+    firstRender.unmount();
+    render(<NetworkTestLab />);
+    const saved = JSON.parse(window.localStorage.getItem("network-state:network-lab-configs:v1") ?? "[]") as Array<{ id: string; name: string }>;
+    const originalConfig = saved.find((config) => config.name === "API smoke test");
+    expect(originalConfig).toBeDefined();
+    fireEvent.change(screen.getByRole("combobox", { name: "Saved configurations" }), {
+      target: { value: originalConfig?.id }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+
+    expect(screen.getByRole("textbox", { name: "Test endpoints" })).toHaveValue("https://api.example.test/health");
+    expect(screen.getByLabelText("Concurrency")).toHaveValue("4");
+    expect(await screen.findByRole("status")).toHaveTextContent(/Loaded/);
+  });
+
+  it("deletes a saved configuration from local storage", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "Temporary config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+    await screen.findByRole("status");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/deleted from this device/);
+    expect(window.localStorage.getItem("network-state:network-lab-configs:v1")).toBe("[]");
   });
 
   it("aborts the active run when the user cancels it", async () => {
