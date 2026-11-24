@@ -2,7 +2,7 @@
 
 A browser-based network diagnostics tool for monitoring connectivity, detecting unstable connections, tracking request failures, and visualizing network events in real time.
 
-> **Status:** MVP preview · public deployment verification in progress
+> **Status:** MVP preview · deployed to GitHub Pages
 
 ## Live preview
 
@@ -122,7 +122,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [x] Save and replay named testing-lab configurations (bounded local storage; query strings and fragments stripped)
 - [x] Cross-browser verification (Chromium, Firefox, WebKit) and keyboard/accessibility smoke checks
-- [ ] Public demo deployment (GitHub Pages enabled and published-site resource-origin smoke test passing)
+- [x] Public demo deployment (GitHub Pages enabled and published-site resource-origin smoke test passing)
 
 ## Dependency maintenance
 
