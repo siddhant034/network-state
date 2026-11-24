@@ -56,7 +56,7 @@ Telemetry retained by the live dashboard is deliberately bounded: 80 browser eve
 
 ## Cross-browser and accessibility checks
 
-The Playwright suite runs the dashboard in Chromium, Firefox, and WebKit. It covers the initial reachability flow, monitoring controls, saved lab configuration privacy and replay, lab execution, keyboard skip navigation, and diagnostics downloads. An axe-core smoke audit checks WCAG 2.0 A and WCAG 2.1 A rules on the rendered dashboard.
+The Playwright suite runs the dashboard in Chromium, Firefox, and WebKit. It covers the initial reachability flow, monitoring controls, saved lab configuration privacy and replay, lab execution, keyboard skip navigation, and diagnostics downloads. An axe-core smoke audit checks WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA, and selected best-practice rules on the rendered dashboard. This automated baseline does not replace manual keyboard, screen-reader, zoom, or contrast review.
 
 Install the browser binaries before running the suite locally:
 
