@@ -65,6 +65,36 @@ test("saved configs persist across reload and deletion requires confirmation", a
   expect(afterDelete?.configs).toHaveLength(0);
 });
 
+test("saved config changes in one tab update the other tab", async ({ page }) => {
+  const endpoint = "https://api.example.test/cross-tab/health?token=private";
+  const otherTab = await page.context().newPage();
+
+  await Promise.all([page.goto("/"), otherTab.goto("/")]);
+  await expect(otherTab.getByRole("option", { name: "Cross-tab smoke config" })).toHaveCount(0);
+
+  await page.getByLabel("Test endpoints").fill(endpoint);
+  await page.getByLabel("Config name").fill("Cross-tab smoke config");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  // The browser storage event should refresh the other already-open tab.
+  const otherTabOption = otherTab.getByRole("option", { name: "Cross-tab smoke config" });
+  await expect(otherTabOption).toBeAttached();
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const confirmation = page.getByRole("group", { name: "Delete saved config?" });
+  await expect(confirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.getByRole("button", { name: "Delete saved config" }).click();
+
+  await expect(otherTabOption).toHaveCount(0);
+  await expect(otherTab.locator(".network-lab-message")).toContainText(
+    "Saved configs updated in another tab."
+  );
+
+  // The test never runs the endpoint; it only verifies browser-local storage sync.
+  await expect(otherTab.getByRole("button", { name: "Run test" })).toBeEnabled();
+  await otherTab.close();
+});
+
 test("import preview never applies a file until Apply import is selected", async ({ page }) => {
   const sensitiveEndpoint = "https://api.example.test/private/health?token=do-not-display";
   const fixture = {
