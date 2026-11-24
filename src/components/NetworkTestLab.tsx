@@ -46,12 +46,18 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
   const [savedConfigs, setSavedConfigs] = useState(loadSavedNetworkLabConfigs);
   const [configName, setConfigName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState("");
+  const [confirmation, setConfirmation] = useState<"delete" | "clear" | null>(null);
   const [configMessage, setConfigMessage] = useState("");
   const [configError, setConfigError] = useState("");
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const selectedConfigIdRef = useRef(selectedConfigId);
   selectedConfigIdRef.current = selectedConfigId;
+  const savedConfigSelectRef = useRef<HTMLSelectElement | null>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
+  const clearCancelRef = useRef<HTMLButtonElement | null>(null);
+  const confirmationReturnFocusRef = useRef<HTMLElement | null>(null);
+  const confirmationWasOpenRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -60,6 +66,30 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
       controllerRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!confirmation) {
+      if (confirmationWasOpenRef.current) {
+        confirmationWasOpenRef.current = false;
+        const target = confirmationReturnFocusRef.current;
+        confirmationReturnFocusRef.current = null;
+        if (target && !("disabled" in target && Boolean((target as HTMLButtonElement).disabled))) target.focus();
+        else savedConfigSelectRef.current?.focus();
+      }
+      return;
+    }
+
+    confirmationWasOpenRef.current = true;
+    (confirmation === "delete" ? deleteCancelRef : clearCancelRef).current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setConfirmation(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [confirmation]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -212,7 +242,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
     setConfigMessage("Loaded “" + config.name + "”. Run the test when you are ready.");
   };
 
-  const handleDeleteConfig = () => {
+  const handleConfirmDeleteConfig = () => {
     if (!selectedConfigId) return;
     const deleted = deleteNetworkLabConfig(selectedConfigId);
     if (!deleted.ok) {
@@ -222,9 +252,25 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
     }
     setSavedConfigs(deleted.configs);
     setSelectedConfigId("");
-    setConfigName("");
+    setConfirmation(null);
+    confirmationReturnFocusRef.current = savedConfigSelectRef.current;
     setConfigError("");
     setConfigMessage("Saved configuration deleted from this device.");
+  };
+
+  const handleConfirmClearConfigs = () => {
+    const cleared = replaceSavedNetworkLabConfigs([]);
+    if (!cleared.ok) {
+      setConfigError(cleared.error);
+      setConfigMessage("");
+      return;
+    }
+    setSavedConfigs(cleared.configs);
+    setSelectedConfigId("");
+    setConfirmation(null);
+    confirmationReturnFocusRef.current = savedConfigSelectRef.current;
+    setConfigError("");
+    setConfigMessage("All saved configurations cleared from this device.");
   };
 
   const handleImportConfigs = (imported: SavedNetworkLabConfig[]) => {
@@ -276,7 +322,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
         <div className="network-lab-config-load">
           <label>
             <span>Saved configurations</span>
-            <select aria-label="Saved configurations" value={selectedConfigId} onChange={(event) => setSelectedConfigId(event.target.value)} disabled={running || savedConfigs.length === 0}>
+            <select ref={savedConfigSelectRef} aria-label="Saved configurations" value={selectedConfigId} onChange={(event) => { confirmationReturnFocusRef.current = event.currentTarget; setSelectedConfigId(event.target.value); setConfirmation(null); }} disabled={running || savedConfigs.length === 0}>
               <option value="">Choose a saved configuration</option>
               {savedConfigs.map((config) => <option key={config.id} value={config.id}>{config.name}</option>)}
             </select>
@@ -284,10 +330,33 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
           <button type="button" onClick={handleLoadConfig} disabled={running || !selectedConfigId}>
             <FolderOpen size={13} /> Load
           </button>
-          <button className="network-lab-delete-config" type="button" onClick={handleDeleteConfig} disabled={running || !selectedConfigId}>
+          <button className="network-lab-delete-config" type="button" onClick={(event) => { confirmationReturnFocusRef.current = event.currentTarget; setConfirmation("delete"); }} disabled={running || !selectedConfigId}>
             <Trash2 size={13} /> Delete
           </button>
+          <button className="network-lab-clear-configs" type="button" onClick={(event) => { confirmationReturnFocusRef.current = event.currentTarget; setConfirmation("clear"); }} disabled={running || savedConfigs.length === 0}>
+            Clear all
+          </button>
         </div>
+        {confirmation === "delete" && selectedConfigId && savedConfigs.some((config) => config.id === selectedConfigId) && (
+          <section className="network-lab-config-confirmation" role="group" aria-labelledby="network-lab-delete-title" aria-describedby="network-lab-delete-description">
+            <h3 id="network-lab-delete-title">Delete saved config?</h3>
+            <p id="network-lab-delete-description"><strong>{savedConfigs.find((config) => config.id === selectedConfigId)?.name}</strong> will be permanently removed from this browser. Your current form and completed results will not change.</p>
+            <div className="network-lab-config-confirmation-actions">
+              <button className="network-lab-delete-config" type="button" onClick={handleConfirmDeleteConfig} disabled={running}>Delete saved config</button>
+              <button ref={deleteCancelRef} type="button" onClick={() => setConfirmation(null)} disabled={running}>Cancel</button>
+            </div>
+          </section>
+        )}
+        {confirmation === "clear" && (
+          <section className="network-lab-config-confirmation" role="group" aria-labelledby="network-lab-clear-title" aria-describedby="network-lab-clear-description">
+            <h3 id="network-lab-clear-title">Clear all saved configs?</h3>
+            <p id="network-lab-clear-description">This will permanently remove {savedConfigs.length} saved config{savedConfigs.length === 1 ? "" : "s"} from this browser. Your current form and completed results will not change.</p>
+            <div className="network-lab-config-confirmation-actions">
+              <button className="network-lab-delete-config" type="button" onClick={handleConfirmClearConfigs} disabled={running}>Delete all saved configs</button>
+              <button ref={clearCancelRef} type="button" onClick={() => setConfirmation(null)} disabled={running}>Cancel</button>
+            </div>
+          </section>
+        )}
         {configError && <p className="network-lab-error" role="alert">{configError}</p>}
         {configMessage && <p className="network-lab-message" role="status">{configMessage}</p>}
         <p className="network-lab-config-note">Saved configurations stay in this browser only. Query strings and fragments are removed before saving; endpoint paths remain and may contain identifiers.</p>
