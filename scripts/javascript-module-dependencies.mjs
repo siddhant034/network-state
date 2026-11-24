@@ -116,7 +116,7 @@ function tokenize(source) {
       cursor = skipJavaScriptTemplateLiteral(source, cursor);
       const raw = source.slice(start, cursor);
       const interpolation = extractTemplateExpressions(raw).length > 0;
-      if (interpolation && /\\bimport\\s*\\(/.test(raw)) {
+      if (interpolation && /\bimport\s*\(/.test(raw)) {
         throw new Error("Cannot audit dynamic import inside a template literal");
       }
       tokens.push({ type: "template", value: raw });
