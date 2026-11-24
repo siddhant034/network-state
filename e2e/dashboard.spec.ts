@@ -106,6 +106,51 @@ test("synchronizes saved-config changes and corruption recovery across same-orig
   await secondTab.close();
 });
 
+test("saved-config controls fit and remain usable at a narrow 320px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const lab = page.getByRole("region", { name: "Network testing lab" });
+  const fixtureRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith("https://api.example.test/")) fixtureRequests.push(request.url());
+  });
+
+  await expect(lab).toBeVisible();
+  await expect(lab.getByLabel("Test endpoints")).toBeVisible();
+  await expect(lab.getByLabel("Configuration name")).toBeVisible();
+  await expect(lab.getByLabel("Saved configurations")).toBeVisible();
+  await expect(lab.getByRole("button", { name: "Save configuration" })).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const selectors = [".network-lab-panel", ".network-lab-configs", ".network-lab-config-save", ".network-lab-config-load"];
+    return {
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      panels: selectors.map((selector) => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error("Missing responsive lab element: " + selector);
+        const rect = element.getBoundingClientRect();
+        return { selector, left: rect.left, right: rect.right };
+      })
+    };
+  });
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  for (const panel of layout.panels) {
+    expect(panel.left, panel.selector).toBeGreaterThanOrEqual(0);
+    expect(panel.right, panel.selector).toBeLessThanOrEqual(layout.viewportWidth);
+  }
+
+  await lab.getByLabel("Test endpoints").fill("https://api.example.test/mobile/health?token=mobile-private");
+  await lab.getByLabel("Configuration name").fill("Narrow mobile config");
+  await lab.getByRole("button", { name: "Save configuration" }).click();
+  await expect(lab.locator(".network-lab-message")).toContainText("Query strings and fragments were removed");
+  await expect(lab.getByRole("option", { name: "Narrow mobile config" })).toBeAttached();
+
+  await lab.getByLabel("Saved configurations").selectOption({ label: "Narrow mobile config" });
+  await lab.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(lab.getByLabel("Test endpoints")).toHaveValue("https://api.example.test/mobile/health");
+  expect(fixtureRequests).toEqual([]);
+});
+
 test("runs a bounded lab request and reports the HTTP response", async ({ page }) => {
   const lab = page.getByRole("region", { name: "Network testing lab" });
   await lab.getByLabel("Requests / endpoint").selectOption("1");

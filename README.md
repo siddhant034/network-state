@@ -67,7 +67,8 @@ npm run test:e2e
 
 The suite also includes a dedicated iPhone 13 WebKit project for touch-driven
 saved-configuration save/load and responsive overflow checks at a 390×844
-emulated screen. Run it alone with:
+emulated screen. A separate 320px viewport check verifies that saved-config
+controls stay within the narrow layout and remain usable without sending a test request. Run it alone with:
 
 ```bash
 npm run test:e2e -- --project=webkit-iphone
