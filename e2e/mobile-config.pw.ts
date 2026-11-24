@@ -15,7 +15,6 @@ test("iPhone WebKit touch viewport can save and reload a config without running 
     viewportHeight: window.innerHeight,
     screenHeight: window.screen.height,
     documentWidth: document.documentElement.scrollWidth,
-    touchPoints: navigator.maxTouchPoints,
     coarsePointer: window.matchMedia("(pointer: coarse)").matches
   }));
 
@@ -26,7 +25,6 @@ test("iPhone WebKit touch viewport can save and reload a config without running 
   expect(environment.viewportHeight).toBeGreaterThan(600);
   expect(environment.viewportHeight).toBeLessThanOrEqual(environment.screenHeight);
   expect(environment.documentWidth).toBeLessThanOrEqual(environment.viewportWidth);
-  expect(environment.touchPoints).toBeGreaterThan(0);
   expect(environment.coarsePointer).toBe(true);
 
   const panel = page.locator(".network-lab-panel");
@@ -51,9 +49,20 @@ test("iPhone WebKit touch viewport can save and reload a config without running 
     expect(rect.right).toBeLessThanOrEqual(environment.viewportWidth);
   }
 
+  const saveButton = page.getByRole("button", { name: "Save", exact: true });
+  await page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find((element) => element.textContent?.trim() === "Save");
+    if (!button) throw new Error("Save button not found");
+    button.dataset.touchSmoke = "pending";
+    button.addEventListener("touchstart", () => {
+      button.dataset.touchSmoke = "received";
+    }, { once: true, passive: true });
+  });
+
   await page.getByLabel("Test endpoints").fill(endpoint);
   await page.getByLabel("Config name").fill("iPhone touch config");
-  await page.getByRole("button", { name: "Save", exact: true }).tap();
+  await saveButton.tap();
+  await expect(saveButton).toHaveAttribute("data-touch-smoke", "received");
   await expect(page.getByText("Config saved in this browser only.", { exact: true })).toBeVisible();
   await expect(page.getByRole("option", { name: "iPhone touch config" })).toBeAttached();
 
