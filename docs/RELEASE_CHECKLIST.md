@@ -7,6 +7,7 @@ This checklist separates automated MVP readiness from the remaining human review
 - [x] Integrate portable saved-config JSON export/import, strict validation, privacy-safe preview, and explicit apply in PR #97.
 - [x] Integrate delete/clear confirmations and keyboard focus handling in PR #97.
 - [x] Stabilize the import-preview Escape test in PR #98.
+- [x] Correct the live Pages smoke fixture to use a supported request count in PR #100.
 - [x] Close the older stacked draft PRs (#59–#65 and #70) as superseded after the current-main integration merged.
 - [x] Re-run required checks on the resulting main head.
 
@@ -22,7 +23,7 @@ The older PR stack was based on divergent feature branches and was not merged wh
 
 ## 3. Browser and accessibility verification
 
-- [x] Playwright passed on main commit 475bc14a421a9d5d33868253df4cbdda7609c884 in Chromium, Firefox, WebKit, and the iPhone WebKit project.
+- [x] Playwright passed on main commit 90445830b9739f0a699c698d1b9cdaef56998049 in Chromium, Firefox, WebKit, and the iPhone WebKit project; the final main CI run is linked from the repository Actions page.
 - [x] Saved-config import/export, delete/clear confirmation, Escape cancellation, focus restoration, and no-auto-run behavior have unit and browser coverage.
 - [x] The automated axe-core baseline checks WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA, and selected best-practice rules.
 - [ ] Before a formal accessibility certification or versioned release, manually review screen-reader output, keyboard-only navigation beyond the covered flows, color contrast, zoom/reflow, and reduced-motion behavior.
@@ -42,11 +43,11 @@ Automated browser and axe checks are a smoke baseline, not a formal WCAG conform
 ## 5. GitHub Pages deployment
 
 - [x] GitHub Pages is enabled with GitHub Actions as the source.
-- [x] The Pages build and deployment succeeded for main commit 475bc14a421a9d5d33868253df4cbdda7609c884.
+- [x] The Pages build and deployment succeeded for main commit 90445830b9739f0a699c698d1b9cdaef56998049.
 - [x] The post-deployment resource smoke test passed at https://siddhant034.github.io/network-state/, confirming the page and same-origin assets load.
-- [ ] The live Chromium core-flow smoke job is added in PR #99; its post-merge run must pass before final website review.
+- [x] The live Chromium core-flow smoke job passed on main commit 90445830b9739f0a699c698d1b9cdaef56998049 in the published-site deployment run.
 
-The Pages workflow deploys only main. The live browser smoke is designed to exercise the published URL itself: refresh/base-path loading, private import preview and cancellation, explicit import, export download, delete/clear confirmations, and no unintended third-party requests.
+The Pages workflow deploys only main. The live browser smoke exercised the published URL itself: refresh/base-path loading, private import preview and cancellation, explicit import, export download, delete/clear confirmations, and no unintended third-party requests. It passed after the fixture correction in PR #100.
 
 ## 6. Publish
 
