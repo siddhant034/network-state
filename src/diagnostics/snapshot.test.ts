@@ -110,6 +110,17 @@ describe("diagnostics snapshot", () => {
     expect(JSON.stringify(snapshot)).not.toMatch(/private#|key=|token=|fragment/);
   });
 
+  it("redacts sensitive path values even when URL paths are explicitly included", () => {
+    const input = createInput(true);
+    input.probeEndpoint = "https://probe.example.test/session/private/reset/abc?secret=value";
+    input.requestEvents[0].url = "https://api.example.test/token/secret-value/users/123";
+    const snapshot = createDiagnosticsSnapshot(input);
+
+    expect(snapshot.configuration.probeEndpointLabel).toBe("https://probe.example.test/session/[redacted]/reset/[redacted]");
+    expect(snapshot.requests[0].url).toBe("https://api.example.test/token/[redacted]/users/123");
+    expect(JSON.stringify(snapshot)).not.toContain("secret-value");
+  });
+
   it("builds correlated incidents into the portable report", () => {
     const snapshot = createDiagnosticsSnapshot(createInput());
 
