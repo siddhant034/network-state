@@ -26,19 +26,36 @@ test("saved configs persist across reload and deletion requires confirmation", a
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await expect(page.getByLabel("Test endpoints")).toHaveValue(endpoint);
 
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
-  const confirmation = page.getByRole("group", { name: "Delete saved config?" });
-  await expect(confirmation).toBeVisible();
+  // Clear-all confirmation starts on the safe action and restores focus when cancelled.
+  const clearTrigger = page.getByRole("button", { name: "Clear all", exact: true });
+  await clearTrigger.click();
+  const clearConfirmation = page.getByRole("group", { name: "Clear all saved configs?" });
+  await expect(clearConfirmation).toBeVisible();
+  await expect(clearConfirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(confirmation).toBeHidden();
+  await expect(clearConfirmation).toBeHidden();
+  await expect(clearTrigger).toBeFocused();
 
-  const afterCancel = await page.evaluate((key) => window.localStorage.getItem(key), storageKey);
-  expect(afterCancel).toBe(savedBeforeReload ? JSON.stringify({
+  const afterClearCancel = await page.evaluate((key) => window.localStorage.getItem(key), storageKey);
+  expect(afterClearCancel).toBe(savedBeforeReload ? JSON.stringify({
     schemaVersion: 1,
     configs: savedBeforeReload.configs
   }) : null);
 
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  // Deletion follows the same keyboard-safe confirmation contract.
+  const deleteTrigger = page.getByRole("button", { name: "Delete", exact: true });
+  await deleteTrigger.click();
+  const confirmation = page.getByRole("group", { name: "Delete saved config?" });
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeHidden();
+  await expect(deleteTrigger).toBeFocused();
+
+  const afterCancel = await page.evaluate((key) => window.localStorage.getItem(key), storageKey);
+  expect(afterCancel).toBe(afterClearCancel);
+
+  await deleteTrigger.click();
   await page.getByRole("button", { name: "Delete saved config" }).click();
   await expect(page.locator(".network-lab-message")).toContainText("Saved config deleted from this browser.");
   const afterDelete = await page.evaluate((key) => {
@@ -84,15 +101,19 @@ test("import preview never applies a file until Apply import is selected", async
   await expect(preview).toContainText("Imported browser config");
   await expect(preview).not.toContainText("/private/health");
   await expect(preview).not.toContainText("do-not-display");
+  await expect(preview.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(preview).toBeHidden();
+  await expect(input).toBeFocused();
   expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull();
 
   await input.setInputFiles(file);
-  await expect(page.getByRole("region", { name: "Review import" })).toBeVisible();
+  const secondPreview = page.getByRole("region", { name: "Review import" });
+  await expect(secondPreview).toBeVisible();
   await page.getByRole("button", { name: "Apply import" }).click();
   await expect(page.locator(".network-lab-config-transfer-status")).toContainText("Import complete");
+  await expect(input).toBeFocused();
   const imported = await page.evaluate((key) => {
     const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) as { configs: Array<{ name: string }> } : null;
