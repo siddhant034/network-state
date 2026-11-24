@@ -86,7 +86,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Exportable diagnostics snapshot (versioned JSON, bounded histories, destination/detail redaction)
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [x] Save and replay named testing-lab configurations (explicit local save, versioned storage, bounded count, validated load/delete)
-- [x] Cross-browser smoke coverage for saved-config persistence, deletion confirmation, and import privacy in Chromium, Firefox, and WebKit
+- [x] Cross-browser smoke coverage for saved-config persistence, deletion confirmation, import privacy, and narrow mobile layout in Chromium, Firefox, and WebKit
 - [ ] Full manual accessibility review and additional browser/device coverage
 - [ ] Public demo deployment
 
