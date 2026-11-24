@@ -20,9 +20,26 @@ export default defineConfig({
     video: "retain-on-failure"
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } }
+    {
+      name: "chromium",
+      testIgnore: "**/mobile-config.pw.ts",
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      name: "firefox",
+      testIgnore: "**/mobile-config.pw.ts",
+      use: { ...devices["Desktop Firefox"] }
+    },
+    {
+      name: "webkit",
+      testIgnore: "**/mobile-config.pw.ts",
+      use: { ...devices["Desktop Safari"] }
+    },
+    {
+      name: "webkit-iphone",
+      testMatch: "**/mobile-config.pw.ts",
+      use: { ...devices["iPhone 13"] }
+    }
   ],
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
