@@ -23,8 +23,8 @@ checks saved-config persistence and same-origin cross-tab save, delete, clear,
 and malformed-storage recovery, keyboard confirmation focus and cancellation,
 import preview privacy, and a 320px mobile viewport check for saved-config
 controls and horizontal overflow. The iPhone project additionally verifies
-coarse-pointer/touch support, a 390×844 viewport, no horizontal overflow, and
-saving/loading a config through touch taps. Cross-tab clear removes the saved
+coarse-pointer/touch support, a 390×844 emulated screen, no horizontal overflow,
+and saving/loading a config through touch taps. The iPhone device profile reports a 390×844 emulated screen; WebKit's `window.innerHeight` may be smaller while browser chrome is reserved. The test checks the emulated screen height and bounds the effective layout viewport instead of assuming they are identical. Cross-tab clear removes the saved
 list in other open tabs without exposing endpoint paths or query values. When
 another tab writes malformed storage, the receiving tab preserves its last
 valid list and shows a generic error without exposing raw storage or endpoint
