@@ -15,8 +15,8 @@ Vitest suite remains the fast unit/component check; these tests exercise
 browser storage and keyboard interactions in actual browser engines.
 
 The suite uses reserved `.test` hostnames and never presses **Run test**. It
-checks saved-config persistence, keyboard confirmation focus and cancellation,
-and import preview privacy. Delete and clear confirmations focus Cancel first
+checks saved-config persistence and same-origin cross-tab updates, keyboard
+confirmation focus and cancellation, and import preview privacy. Delete and clear confirmations focus Cancel first
 and restore focus to their trigger after Escape. Import preview focuses Cancel
 first and returns focus to the file input after Escape or Apply import.
 
