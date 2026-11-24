@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NetworkTestLab } from "./NetworkTestLab";
+import { NETWORK_LAB_CONFIG_STORAGE_KEY } from "../adapters/network-lab-configs";
 import { runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 
 vi.mock("../adapters/network-test-lab", async (importOriginal) => {
@@ -120,6 +121,73 @@ describe("NetworkTestLab", () => {
     expect(screen.getByRole("textbox", { name: "Test endpoints" })).toHaveValue("https://api.example.test/health");
     expect(screen.getByLabelText("Concurrency")).toHaveValue("4");
     expect(await screen.findByRole("status")).toHaveTextContent(/Loaded/);
+  });
+
+  it("refreshes saved configs when another same-origin tab updates or clears storage", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "Shared config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+    await screen.findByRole("status");
+
+    const raw = window.localStorage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw!) as Array<{ id: string; name: string; updatedAt: number }>;
+    stored[0].name = "Updated in another tab";
+    stored[0].updatedAt += 1;
+    const updatedValue = JSON.stringify(stored);
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, updatedValue);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: updatedValue,
+      storageArea: window.localStorage
+    }));
+
+    expect(await screen.findByRole("option", { name: "Updated in another tab" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/updated in another tab/i));
+
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, "[]");
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: "[]",
+      storageArea: window.localStorage
+    }));
+    await waitFor(() => expect(screen.queryByRole("option", { name: "Updated in another tab" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Saved configurations" })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/updated in another tab/i));
+
+    window.localStorage.clear();
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: null,
+      newValue: null,
+      storageArea: window.localStorage
+    }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/cleared in another tab/i));
+  });
+
+  it("preserves the last valid config list when another tab writes malformed storage", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Configuration name" }), {
+      target: { value: "Last valid config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
+    await screen.findByRole("status");
+
+    const select = screen.getByRole("combobox", { name: "Saved configurations" });
+    expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
+
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, "{broken");
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: "{broken",
+      storageArea: window.localStorage
+    }));
+
+    expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
+    expect(select).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/changed to invalid data in another tab/i));
+    expect(screen.queryByText("{broken")).not.toBeInTheDocument();
   });
 
   it("deletes a saved configuration from local storage", async () => {

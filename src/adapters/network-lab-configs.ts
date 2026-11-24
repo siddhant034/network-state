@@ -121,30 +121,66 @@ function normalizeConfig(value: unknown, stripQueryData: boolean): NormalizedCon
   };
 }
 
-function readConfigs(storage: StorageLike | null): SavedNetworkLabConfig[] {
-  if (!storage) return [];
-  try {
-    const raw = storage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
-    if (!raw || raw.length > MAX_NETWORK_LAB_CONFIG_STORAGE_CHARS) return [];
-    const value: unknown = JSON.parse(raw);
-    if (!Array.isArray(value)) return [];
+export type SavedNetworkLabConfigReadStatus = "ok" | "missing" | "invalid" | "unavailable";
 
-    const configs: SavedNetworkLabConfig[] = [];
-    const ids = new Set<string>();
-    const names = new Set<string>();
-    for (const item of value.slice(0, MAX_SAVED_NETWORK_LAB_CONFIGS)) {
-      const normalized = normalizeConfig(item, false)?.config;
-      if (!normalized) continue;
-      const nameKey = normalized.name.toLowerCase();
-      if (ids.has(normalized.id) || names.has(nameKey)) continue;
-      ids.add(normalized.id);
-      names.add(nameKey);
-      configs.push(normalized);
-    }
-    return configs;
+export interface SavedNetworkLabConfigReadResult {
+  status: SavedNetworkLabConfigReadStatus;
+  configs: SavedNetworkLabConfig[];
+}
+
+/**
+ * Read the current local record without confusing malformed data or blocked
+ * storage with an intentionally empty configuration list. The UI uses this
+ * when processing cross-tab storage events so corruption never erases its
+ * last known-good in-memory list.
+ */
+export function inspectSavedNetworkLabConfigs(
+  storage: Pick<Storage, "getItem"> | null = getBrowserStorage()
+): SavedNetworkLabConfigReadResult {
+  if (!storage) return { status: "unavailable", configs: [] };
+
+  let raw: string | null;
+  try {
+    raw = storage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
   } catch {
-    return [];
+    return { status: "unavailable", configs: [] };
   }
+  if (raw === null) return { status: "missing", configs: [] };
+  if (raw.length > MAX_NETWORK_LAB_CONFIG_STORAGE_CHARS) return { status: "invalid", configs: [] };
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return { status: "invalid", configs: [] };
+  }
+  if (!Array.isArray(value)) return { status: "invalid", configs: [] };
+
+  const configs: SavedNetworkLabConfig[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  let invalid = value.length > MAX_SAVED_NETWORK_LAB_CONFIGS;
+  for (const item of value.slice(0, MAX_SAVED_NETWORK_LAB_CONFIGS)) {
+    const normalized = normalizeConfig(item, false)?.config;
+    if (!normalized) {
+      invalid = true;
+      continue;
+    }
+    const nameKey = normalized.name.toLowerCase();
+    if (ids.has(normalized.id) || names.has(nameKey)) {
+      invalid = true;
+      continue;
+    }
+    ids.add(normalized.id);
+    names.add(nameKey);
+    configs.push(normalized);
+  }
+
+  return { status: invalid ? "invalid" : "ok", configs };
+}
+
+function readConfigs(storage: StorageLike | null): SavedNetworkLabConfig[] {
+  return inspectSavedNetworkLabConfigs(storage).configs;
 }
 
 /** Load only validated, bounded configurations from this browser's local storage. */

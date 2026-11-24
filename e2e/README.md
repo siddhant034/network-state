@@ -25,6 +25,11 @@ coarse-pointer media query and the effective WebKit viewport separately from
 the emulated screen height because browser chrome can reduce
 `window.innerHeight`.
 
+The desktop dashboard suite also opens two same-origin tabs and verifies
+saved-config save/update propagation, corrupt-storage recovery without losing
+the last valid list, and cross-tab clear behavior. Storage events do not start
+diagnostic requests; the test never presses **Run test**.
+
 All fixtures use reserved `.test` endpoints. The test checks that query
 strings are stripped before persistence and never presses **Run test** or
 sends a request to the fixture endpoint. It does not prove behavior on a
