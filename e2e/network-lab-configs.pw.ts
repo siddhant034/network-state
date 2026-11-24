@@ -127,6 +127,39 @@ test("clearing configs in one tab clears the other tab without exposing endpoint
   await otherTab.close();
 });
 
+test("preserves the last valid config list when another tab writes malformed storage", async ({ page }) => {
+  const endpoint = "https://api.example.test/cross-tab/recovery?token=recovery-private";
+  const otherTab = await page.context().newPage();
+  let endpointRequests = 0;
+  page.context().on("request", (request) => {
+    if (request.url().startsWith(endpoint)) endpointRequests += 1;
+  });
+
+  await Promise.all([page.goto("/"), otherTab.goto("/")]);
+  await page.getByLabel("Test endpoints").fill(endpoint);
+  await page.getByLabel("Config name").fill("Cross-tab recovery config");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const savedOption = otherTab.getByRole("option", { name: "Cross-tab recovery config" });
+  await expect(savedOption).toBeAttached();
+
+  // Another tab can write malformed local data; the receiving tab must keep its
+  // last validated list and must not expose the raw storage or endpoint details.
+  await page.evaluate((key) => window.localStorage.setItem(key, "{broken"), storageKey);
+
+  await expect(savedOption).toBeAttached();
+  await expect(otherTab.getByRole("alert")).toContainText(
+    "Saved config storage changed to invalid data in another tab."
+  );
+  await expect(otherTab.getByRole("alert")).not.toContainText("{broken");
+  await expect(otherTab.getByRole("alert")).not.toContainText("/cross-tab/recovery");
+  await expect(otherTab.getByRole("alert")).not.toContainText("recovery-private");
+
+  const raw = await otherTab.evaluate((key) => window.localStorage.getItem(key), storageKey);
+  expect(raw).toBe("{broken");
+  expect(endpointRequests).toBe(0);
+  await otherTab.close();
+});
+
 test("import preview never applies a file until Apply import is selected", async ({ page }) => {
   const sensitiveEndpoint = "https://api.example.test/private/health?token=do-not-display";
   const fixture = {
