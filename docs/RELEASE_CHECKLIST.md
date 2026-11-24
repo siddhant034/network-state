@@ -1,82 +1,69 @@
 # Release readiness checklist
 
-This checklist is intentionally separate from feature completion. A passing CI run is necessary, but it does not by itself mean the public demo is ready.
+This checklist separates automated MVP readiness from the remaining human review required before a formal versioned release.
 
-## 1. Integrate the stacked work
+## 1. Integrate the saved-config work
 
-- [ ] Review and merge the feature stack in dependency order, beginning with PR #1.
-- [ ] After each predecessor is merged, retarget the next stacked PR to `main` and confirm its diff contains only the remaining change.
-- [ ] Re-run the required checks on the resulting `main` head.
-- [ ] Do not merge a child branch while its base feature is still unmerged.
+- [x] Integrate portable saved-config JSON export/import, strict validation, privacy-safe preview, and explicit apply in PR #97.
+- [x] Integrate delete/clear confirmations and keyboard focus handling in PR #97.
+- [x] Stabilize the import-preview Escape test in PR #98.
+- [x] Close the older stacked draft PRs (#59–#65 and #70) as superseded after the current-main integration merged.
+- [x] Re-run required checks on the resulting main head.
 
-## CI resource hygiene
-
-- CI cancels superseded runs for the same pull request or branch so stale browser matrices do not consume runners after newer code is pushed.
-- Always verify the latest commit's run; a cancelled older run is not evidence that the current head passed.
-
-## Workflow action pin enforcement
-
-CI runs a dependency-free verifier over every YAML workflow under `.github/workflows`. Third-party actions must use a full 40-character commit SHA; local composite actions (`./...`) are allowed. The verifier and its tests run in pull-request CI and again before the Pages build. This prevents a reviewed workflow from silently reverting to mutable action tags.
-
-
-## Least-privilege workflow permissions
-
-CI audits workflow token permissions and rejects broad presets, workflow-level grants beyond `contents: read`, and `pull_request_target`. Job-level permission mappings are checked as complete sets: read-only `contents: read` is permitted for build jobs, while write access is limited to the Pages deploy job's exact `pages: write` and `id-token: write` grants. Duplicate and unsupported entries fail the audit. The policy scanner and its tests run in PR CI and before the Pages build; unsupported syntax must fail closed rather than be skipped. The trigger audit checks the complete top-level `on` block, including block-sequence event lists and flow-style event collections, so `pull_request_target` cannot evade the policy by changing YAML representation. YAML anchors, aliases, and merge keys are rejected inside this block because the dependency-free scanner cannot safely resolve their effective event set; use explicit event declarations instead. The scanner also requires exactly one non-empty top-level `on` block and rejects scalar or ambiguous trigger forms, preventing a workflow from passing the audit without an auditable event declaration.
+The older PR stack was based on divergent feature branches and was not merged wholesale. The equivalent changes were applied to current main and validated there.
 
 ## 2. Reproducible dependencies and security
 
-- [ ] Integrate the committed npm lockfile and `npm ci` workflows from PR #14 into `main`.
-- [ ] Keep the dependency audit gate enabled; release requires a clean audit.
-- [ ] Review Dependabot updates and GitHub Actions updates before merging them.
-- [ ] Run the production build and unit tests using Node.js 22.12.0 or newer.
-- [ ] Re-check the dependency audit immediately before tagging a release.
-
-PR #14 commits the resolved `package-lock.json` and switches both CI and the Pages build to `npm ci`. Keep this gate open until that change is integrated into `main`; the audit JSON remains available as a short-lived artifact for each CI run.
+- [x] The committed package-lock.json is used by CI and Pages with npm ci.
+- [x] The dependency audit gate is enabled; the latest verified main CI run passed.
+- [x] Workflow actions are pinned to full commit SHAs and workflow permission checks are enforced.
+- [x] Production build and unit tests pass on Node.js 22.
+- [ ] Review future Dependabot and GitHub Actions updates before merging them; this is ongoing maintenance.
 
 ## 3. Browser and accessibility verification
 
-- [ ] Confirm Playwright passes in Chromium, Firefox, and WebKit on the exact release commit.
-- [ ] Manually verify keyboard-only navigation, visible focus, skip navigation, and all interactive controls.
-- [ ] Review screen-reader names, roles, status announcements, and form errors.
-- [ ] Check WCAG AA contrast for text, controls, charts, and status colors.
-- [ ] Verify reduced-motion preferences and narrow/mobile layouts.
+- [x] Playwright passed on main commit 475bc14a421a9d5d33868253df4cbdda7609c884 in Chromium, Firefox, WebKit, and the iPhone WebKit project.
+- [x] Saved-config import/export, delete/clear confirmation, Escape cancellation, focus restoration, and no-auto-run behavior have unit and browser coverage.
+- [x] The automated axe-core baseline checks WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA, and selected best-practice rules.
+- [ ] Before a formal accessibility certification or versioned release, manually review screen-reader output, keyboard-only navigation beyond the covered flows, color contrast, zoom/reflow, and reduced-motion behavior.
 
-The browser suite runs axe-core against WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA, and selected best-practice rules. This remains an automated smoke baseline, not a substitute for manual keyboard, screen-reader, zoom, and color-contrast review or a formal WCAG conformance audit.
+Automated browser and axe checks are a smoke baseline, not a formal WCAG conformance audit.
 
 ## 4. Privacy and operational behavior
 
-- [ ] Confirm no third-party requests are made by the published app.
-- [ ] Confirm Fetch/XHR instrumentation remains off by default and clearly opt-in.
-- [ ] Confirm reports redact URL paths by default and never include credentials, headers, cookies, request bodies, query strings, or fragments.
-- [ ] Verify imported snapshots remain read-only and separate from live telemetry.
-- [ ] Re-check bounded in-memory retention and local-storage limits.
-- [ ] Confirm documentation accurately describes browser API and CORS limitations.
+- [x] The published-site verifier checks the deployed HTML, JavaScript, CSS, responsive resource references, and same-origin dependency policy.
+- [x] Fetch/XHR instrumentation remains off by default and is explicitly opt-in.
+- [x] Diagnostics export redacts URL paths by default and omits credentials, headers, cookies, bodies, query strings, and fragments.
+- [x] Imported diagnostic snapshots remain read-only and separate from live telemetry.
+- [x] Saved lab configs remain local, bounded to ten, and have query strings/fragments stripped before persistence.
+- [x] Portable saved-config import is limited to 1 MB, schema/workload validated, previewed without endpoint URLs, and applied only after explicit confirmation; imported configs never run automatically.
+- [x] README describes browser API, CORS, local-storage, and endpoint-path limitations.
 
-## 5. Enable and verify GitHub Pages
+## 5. GitHub Pages deployment
 
-The repository contains `.github/workflows/pages.yml`, but the Pages site must be enabled in repository settings before the workflow can deploy.
+- [x] GitHub Pages is enabled with GitHub Actions as the source.
+- [x] The Pages build and deployment succeeded for main commit 475bc14a421a9d5d33868253df4cbdda7609c884.
+- [x] The post-deployment resource smoke test passed at https://siddhant034.github.io/network-state/, confirming the page and same-origin assets load.
+- [ ] The live Chromium core-flow smoke job is added in PR #99; its post-merge run must pass before final website review.
 
-1. Open **Settings → Pages** in the repository.
-2. Under **Build and deployment**, select **GitHub Actions** as the source.
-3. Merge the release-ready changes to `main`.
-4. Confirm the Pages build and deployment workflow completes successfully.
-5. Open the exact deployment URL reported by the workflow and verify the dashboard, assets, refresh/deep-link behavior, and base path.
-6. Re-run the browser smoke checks against the published URL, not only the local Vite development server.
-
-The Pages workflow now gates artifact upload on unit tests, published-site verifier tests, the production build, the built-artifact preflight, and `npm audit --audit-level=low`. Its deploy job is restricted to `main`; a manual dispatch from a feature branch cannot publish that branch. The post-deployment smoke test remains mandatory because the published host can still differ from the local artifact.
-
-Do not announce a public demo until the deployment URL has been opened and verified successfully.
+The Pages workflow deploys only main. The live browser smoke is designed to exercise the published URL itself: refresh/base-path loading, private import preview and cancellation, explicit import, export download, delete/clear confirmations, and no unintended third-party requests.
 
 ## 6. Publish
 
-- [ ] Update the product status, capabilities, known limitations, and setup instructions in the README.
-- [ ] Add release notes and a version tag.
-- [ ] Verify the final `main` commit, CI run, dependency audit, and Pages deployment all refer to the same release commit.
-- [ ] Only then mark Network State ready for final review.
+- [x] README status, capabilities, setup, limitations, and privacy documentation are updated.
+- [ ] Release notes and a version tag are intentionally deferred until final code/website review and the manual accessibility review above.
 
-## Pre-deployment artifact check
+## CI resource hygiene
 
-CI runs the same resource-origin and static network-dependency audit against the generated `dist` artifact before the dependency audit and browser matrix finish. This catches broken project-base asset paths, missing build output, and unexpected external resource references before deployment. The Pages workflow also runs the check before uploading its deployment artifact. The post-deployment smoke test remains required.
+CI cancels superseded runs for the same pull request or branch so stale browser matrices do not consume runners after newer code is pushed. Always verify the latest commit's run; a cancelled older run is not evidence that the current head passed.
+
+## Workflow action pin enforcement
+
+CI runs a dependency-free verifier over every YAML workflow under .github/workflows. Third-party actions must use a full 40-character commit SHA; local composite actions (./...) are allowed. The verifier and its tests run in pull-request CI and again before the Pages build. This prevents a reviewed workflow from silently reverting to mutable action tags.
+
+## Least-privilege workflow permissions
+
+CI audits workflow token permissions and rejects broad presets, workflow-level grants beyond contents: read, and pull_request_target. Job-level permission mappings are checked as complete sets: read-only contents: read is permitted for build jobs, while write access is limited to the Pages deploy job's exact pages: write and id-token: write grants. Duplicate and unsupported entries fail the audit. The policy scanner and its tests run in PR CI and before the Pages build; unsupported syntax must fail closed rather than be skipped. The trigger audit checks the complete top-level on block, including block-sequence event lists and flow-style event collections, so pull_request_target cannot evade the policy by changing YAML representation. YAML anchors, aliases, and merge keys are rejected inside this block because the dependency-free scanner cannot safely resolve their effective event set; use explicit event declarations instead. The scanner also requires exactly one non-empty top-level on block and rejects scalar or ambiguous trigger forms, preventing a workflow from passing the audit without an auditable event declaration.
 
 ## GitHub Actions supply-chain maintenance
 

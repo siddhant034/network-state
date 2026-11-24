@@ -38,6 +38,8 @@ jobs:
         run: npm run test:workflow-pins
       - name: Test published-site smoke verifier
         run: node --test scripts/pages-smoke-test.test.mjs scripts/pages-build-smoke-test.test.mjs
+      - name: Check live Pages browser smoke script syntax
+        run: node --check scripts/pages-live-browser-smoke.mjs
       - name: Build
         run: npm run build
       - name: Preflight the built GitHub Pages artifact
