@@ -38,7 +38,7 @@ test("supports pausing and resuming monitoring", async ({ page }) => {
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
 
-test("saves, reloads, and deletes a redacted lab configuration", async ({ page }) => {
+test("saves, reloads, and confirms saved-config deletion and clearing with keyboard-safe focus", async ({ page }) => {
   const lab = page.getByRole("region", { name: "Network testing lab" });
   const endpoint = new URL("health?token=private-value#session", page.url()).toString();
 
@@ -47,21 +47,56 @@ test("saves, reloads, and deletes a redacted lab configuration", async ({ page }
   await lab.getByRole("button", { name: "Save configuration" }).click();
   await expect(lab.locator(".network-lab-message")).toContainText("Query strings and fragments were removed");
 
-  const stored = await page.evaluate(() => {
+  const stored = async () => page.evaluate(() => {
     const value = localStorage.getItem("network-state:network-lab-configs:v1");
     return value ? JSON.parse(value) as Array<{ name: string; endpointInput: string }> : [];
   });
-  expect(stored).toHaveLength(1);
-  expect(stored[0].name).toBe("Cross-browser smoke");
-  expect(stored[0].endpointInput).not.toContain("private-value");
-  expect(stored[0].endpointInput).not.toContain("#session");
+  const saved = await stored();
+  expect(saved).toHaveLength(1);
+  expect(saved[0].name).toBe("Cross-browser smoke");
+  expect(saved[0].endpointInput).not.toContain("private-value");
+  expect(saved[0].endpointInput).not.toContain("#session");
 
   await lab.getByLabel("Saved configurations").selectOption({ label: "Cross-browser smoke" });
   await lab.getByRole("button", { name: "Load", exact: true }).click();
   await expect(lab.locator(".network-lab-message")).toContainText("Loaded");
-  await lab.getByRole("button", { name: "Delete", exact: true }).click();
+
+  const deleteTrigger = lab.getByRole("button", { name: "Delete", exact: true });
+  await deleteTrigger.click();
+  const deleteConfirmation = lab.getByRole("group", { name: "Delete saved config?" });
+  await expect(deleteConfirmation).toBeVisible();
+  await expect(deleteConfirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(deleteConfirmation).toBeHidden();
+  await expect(deleteTrigger).toBeFocused();
+  expect(await stored()).toHaveLength(1);
+
+  await deleteTrigger.click();
+  await deleteConfirmation.getByRole("button", { name: "Delete saved config", exact: true }).click();
   await expect(lab.locator(".network-lab-message")).toContainText("deleted from this device");
   await expect(lab.getByLabel("Saved configurations")).toHaveValue("");
+  expect(await stored()).toHaveLength(0);
+  await expect(lab.getByLabel("Configuration name")).toBeFocused();
+
+  await lab.getByLabel("Configuration name").fill("Clear config");
+  await lab.getByRole("button", { name: "Save configuration" }).click();
+  const clearTrigger = lab.getByRole("button", { name: "Clear all", exact: true });
+  await clearTrigger.click();
+  const clearConfirmation = lab.getByRole("group", { name: "Clear all saved configs?" });
+  await expect(clearConfirmation).toBeVisible();
+  await expect(clearConfirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(clearConfirmation).toBeHidden();
+  await expect(clearTrigger).toBeFocused();
+  expect(await stored()).toHaveLength(1);
+
+  await clearTrigger.click();
+  await clearConfirmation.getByRole("button", { name: "Delete all saved configs", exact: true }).click();
+  await expect(lab.locator(".network-lab-message")).toContainText("All saved configurations cleared");
+  await expect(lab.getByLabel("Saved configurations")).toBeDisabled();
+  expect(await stored()).toHaveLength(0);
+  await expect(lab.getByLabel("Configuration name")).toBeFocused();
+  await expect(lab.getByLabel("Configuration name")).toHaveValue("Clear config");
 });
 
 test("synchronizes saved-config changes and corruption recovery across same-origin tabs", async ({ page, context }) => {
