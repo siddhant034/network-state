@@ -16,7 +16,7 @@ browser storage and keyboard interactions in actual browser engines.
 
 The suite uses reserved `.test` hostnames and never presses **Run test**. It
 checks saved-config persistence and same-origin cross-tab save, delete, clear, and malformed-storage recovery, keyboard
-confirmation focus and cancellation, and import preview privacy. Cross-tab clear removes the saved list in other open tabs without exposing endpoint paths or query values. When another tab writes malformed storage, the receiving tab preserves its last valid list and shows a generic error without exposing raw storage or endpoint details. Delete and clear confirmations focus Cancel first
+confirmation focus and cancellation, import preview privacy, and a 320px mobile viewport check for saved-config controls and horizontal overflow. Cross-tab clear removes the saved list in other open tabs without exposing endpoint paths or query values. When another tab writes malformed storage, the receiving tab preserves its last valid list and shows a generic error without exposing raw storage or endpoint details. Delete and clear confirmations focus Cancel first
 and restore focus to their trigger after Escape. Import preview focuses Cancel
 first and returns focus to the file input after Escape or Apply import.
 
