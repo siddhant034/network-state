@@ -42,7 +42,7 @@ try {
       id: "live-pages-smoke-" + now.toString(36),
       name: "Live site smoke",
       endpointInput: "https://api.example.test/private/live-smoke/health",
-      requestsPerEndpoint: 2,
+      requestsPerEndpoint: 3,
       concurrency: 1,
       timeoutSeconds: 3,
       retries: 0,
