@@ -36,10 +36,10 @@ describe("portable saved network lab configs", () => {
     expect(parseNetworkLabConfigExport("{broken").ok).toBe(false);
     expect(parseNetworkLabConfigExport(JSON.stringify({
       format: "network-state-saved-lab-configs", schemaVersion: 9, exportedAt: 200, configs: []
-    })).toMatchObject({ ok: false, error: expect.stringMatching(/unsupported schema/) });
+    }))).toMatchObject({ ok: false, error: expect.stringMatching(/unsupported schema/) });
     expect(parseNetworkLabConfigExport(JSON.stringify({
       format: "network-state-saved-lab-configs", schemaVersion: 1, exportedAt: 200, configs: []
-    })).toMatchObject({ ok: false, error: expect.stringMatching(/between one and ten/) });
+    }))).toMatchObject({ ok: false, error: expect.stringMatching(/between one and ten/) });
     expect(parseNetworkLabConfigExport(" ".repeat(MAX_NETWORK_LAB_CONFIG_IMPORT_BYTES + 1)))
       .toMatchObject({ ok: false, error: expect.stringMatching(/1 MB/) });
     expect(serialized.length).toBeGreaterThan(0);
