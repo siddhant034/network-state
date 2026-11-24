@@ -112,28 +112,55 @@ function parseStoredConfig(value: unknown): SavedNetworkLabConfig | null {
   }
 }
 
-export function loadNetworkLabConfigs(storage: Pick<Storage, "getItem">): SavedNetworkLabConfig[] {
+export type NetworkLabConfigReadStatus = "ok" | "missing" | "invalid" | "unavailable";
+
+export interface NetworkLabConfigReadResult {
+  status: NetworkLabConfigReadStatus;
+  configs: SavedNetworkLabConfig[];
+}
+
+/**
+ * Reads and validates the current local record without conflating an empty
+ * record with malformed JSON or a browser storage permission failure.
+ */
+export function inspectNetworkLabConfigs(storage: Pick<Storage, "getItem">): NetworkLabConfigReadResult {
+  let raw: string | null;
   try {
-    const raw = storage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || (parsed as { schemaVersion?: unknown }).schemaVersion !== 1 ||
-        !Array.isArray((parsed as { configs?: unknown }).configs)) return [];
-    const configs = ((parsed as { configs: unknown[] }).configs)
-      .map(parseStoredConfig)
-      .filter((config): config is SavedNetworkLabConfig => config !== null);
-    const uniqueNames = new Set<string>();
-    const uniqueIds = new Set<string>();
-    return configs.filter((config) => {
-      const name = config.name.toLocaleLowerCase();
-      if (uniqueNames.has(name) || uniqueIds.has(config.id)) return false;
-      uniqueNames.add(name);
-      uniqueIds.add(config.id);
-      return true;
-    }).slice(0, MAX_SAVED_NETWORK_LAB_CONFIGS);
+    raw = storage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
   } catch {
-    return [];
+    return { status: "unavailable", configs: [] };
   }
+  if (raw === null) return { status: "missing", configs: [] };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: "invalid", configs: [] };
+  }
+  if (!parsed || typeof parsed !== "object" ||
+      (parsed as { schemaVersion?: unknown }).schemaVersion !== 1 ||
+      !Array.isArray((parsed as { configs?: unknown }).configs)) {
+    return { status: "invalid", configs: [] };
+  }
+
+  const source = (parsed as { configs: unknown[] }).configs;
+  const configs = source.map(parseStoredConfig).filter((config): config is SavedNetworkLabConfig => config !== null);
+  const uniqueNames = new Set<string>();
+  const uniqueIds = new Set<string>();
+  const unique = configs.filter((config) => {
+    const name = config.name.toLocaleLowerCase();
+    if (uniqueNames.has(name) || uniqueIds.has(config.id)) return false;
+    uniqueNames.add(name);
+    uniqueIds.add(config.id);
+    return true;
+  }).slice(0, MAX_SAVED_NETWORK_LAB_CONFIGS);
+
+  return { status: unique.length !== source.length ? "invalid" : "ok", configs: unique };
+}
+
+export function loadNetworkLabConfigs(storage: Pick<Storage, "getItem">): SavedNetworkLabConfig[] {
+  return inspectNetworkLabConfigs(storage).configs;
 }
 
 export function persistNetworkLabConfigs(
