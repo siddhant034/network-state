@@ -1,0 +1,22 @@
+.network-lab-config-transfer{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.network-lab-config-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 11px;border:1px solid #365848;border-radius:7px;background:#193529;color:#bde8cd;font:600 9px Manrope,sans-serif;white-space:nowrap;cursor:pointer}
+.network-lab-config-button.muted{border-color:#344756;background:#1a2935;color:#c0d1df}
+.network-lab-config-button:disabled{opacity:.4;cursor:not-allowed}
+.network-lab-config-import{position:relative;overflow:hidden;cursor:pointer}
+.network-lab-config-import input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.network-lab-config-transfer-error,.network-lab-config-transfer-status{flex-basis:100%;margin:0;font-size:9px;line-height:1.55}
+.network-lab-config-transfer-error{color:#efb0aa}
+.network-lab-config-transfer-status{color:#9cdbb8}
+.network-lab-config-import:focus-within{outline:2px solid #5d9a80;outline-offset:2px}
+.network-lab-config-import-preview{flex-basis:100%;min-width:0;padding:12px;border:1px solid #263440;border-radius:8px;background:#101720;font-size:11px}
+.network-lab-config-import-preview-heading{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.network-lab-config-import-preview p{margin:8px 0;color:#8293a3;line-height:1.55}
+.network-lab-config-import-preview ul{list-style:none;padding:0;margin:8px 0;max-height:180px;overflow:auto}
+.network-lab-config-import-preview li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #263440}
+.network-lab-config-import-preview li small{display:block;color:#8293a3;font-size:9px}
+.network-lab-config-import-preview li>span:last-child{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#8293a3}
+.network-lab-config-import-warning{font-size:10px!important;color:#e5c58c!important}
+.network-lab-config-import-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.network-lab-config-import[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.network-lab-config-import input:disabled{cursor:not-allowed}
+@media(max-width:520px){.network-lab-config-transfer{align-items:stretch;flex-direction:column}.network-lab-config-button{width:100%}.network-lab-config-import-preview li{flex-wrap:wrap}}
