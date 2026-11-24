@@ -41,7 +41,7 @@ PR #14 commits the resolved `package-lock.json` and switches both CI and the Pag
 - [ ] Check WCAG AA contrast for text, controls, charts, and status colors.
 - [ ] Verify reduced-motion preferences and narrow/mobile layouts.
 
-Automated axe checks are a smoke baseline, not a substitute for manual accessibility review or a formal WCAG conformance audit.
+The browser suite runs axe-core against WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA, and selected best-practice rules. This remains an automated smoke baseline, not a substitute for manual keyboard, screen-reader, zoom, and color-contrast review or a formal WCAG conformance audit.
 
 ## 4. Privacy and operational behavior
 
