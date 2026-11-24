@@ -220,3 +220,48 @@ test("import preview never applies a file until Apply import is selected", async
   await expect(page.getByRole("button", { name: "Run test" })).toBeEnabled();
   await expect(page.getByRole("progressbar", { name: "Network test progress" })).toHaveCount(0);
 });
+
+test("saved-config controls fit and remain usable at a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+
+  const endpointInput = page.getByLabel("Test endpoints");
+  const configNameInput = page.getByLabel("Config name");
+  const importInput = page.getByLabel("Import saved configs");
+  const configPanel = page.locator(".network-lab-panel");
+  const transferControls = page.locator(".network-lab-config-transfer");
+
+  await expect(configPanel).toBeVisible();
+  await expect(endpointInput).toBeVisible();
+  await expect(configNameInput).toBeVisible();
+  await expect(importInput).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+
+  const layout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    panel: (() => {
+      const rect = document.querySelector(".network-lab-panel")!.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    })(),
+    transfer: (() => {
+      const rect = document.querySelector(".network-lab-config-transfer")!.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    })()
+  }));
+
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.panel.left).toBeGreaterThanOrEqual(0);
+  expect(layout.panel.right).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.transfer.left).toBeGreaterThanOrEqual(0);
+  expect(layout.transfer.right).toBeLessThanOrEqual(layout.viewportWidth);
+
+  await endpointInput.fill("https://api.example.test/mobile/health?token=mobile-private");
+  await configNameInput.fill("Mobile viewport config");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Config saved in this browser only.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Mobile viewport config" })).toBeAttached();
+
+  // Responsive verification only; the reserved endpoint is never requested.
+  await expect(page.getByRole("button", { name: "Run test" })).toBeEnabled();
+});
