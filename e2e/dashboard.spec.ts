@@ -99,6 +99,75 @@ test("saves, reloads, and confirms saved-config deletion and clearing with keybo
   await expect(lab.getByLabel("Configuration name")).toHaveValue("Clear config");
 });
 
+test("imports saved configs through a private preview and exports a portable file without running endpoints", async ({ page }) => {
+  const lab = page.getByRole("region", { name: "Network testing lab" });
+  const input = lab.getByLabel("Import saved configs");
+  const endpointInput = lab.getByLabel("Test endpoints");
+  const originalEndpoint = await endpointInput.inputValue();
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith("https://api.example.test/")) requests.push(request.url());
+  });
+  const now = Date.now();
+  const payload = {
+    format: "network-state-saved-lab-configs",
+    schemaVersion: 1,
+    exportedAt: now,
+    configs: [{
+      id: "portable-office",
+      name: "Portable office",
+      endpointInput: "https://api.example.test/private/health",
+      requestsPerEndpoint: 3,
+      concurrency: 2,
+      timeoutSeconds: 5,
+      retries: 1,
+      simulatedLatencyMs: 0,
+      simulatedFailureRate: 0,
+      updatedAt: now
+    }]
+  };
+  const file = {
+    name: "network-state-saved-lab-configs.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(payload))
+  };
+
+  await input.setInputFiles(file);
+  const preview = lab.getByRole("region", { name: "Review import" });
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText("Portable office");
+  await expect(preview).not.toContainText("/private/health");
+  await expect(preview.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem("network-state:network-lab-configs:v1"))).toBeNull();
+
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
+  await expect(input).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem("network-state:network-lab-configs:v1"))).toBeNull();
+
+  await input.setInputFiles(file);
+  await preview.getByRole("button", { name: "Apply import", exact: true }).click();
+  await expect(lab.locator(".network-lab-transfer-status")).toContainText("nothing was run");
+  const stored = await page.evaluate(() => {
+    const value = localStorage.getItem("network-state:network-lab-configs:v1");
+    return value ? JSON.parse(value) as Array<{ id: string; endpointInput: string }> : [];
+  });
+  expect(stored).toHaveLength(1);
+  expect(stored[0].id).toBe("portable-office");
+  expect(stored[0].endpointInput).toBe("https://api.example.test/private/health");
+  expect(await endpointInput.inputValue()).toBe(originalEndpoint);
+  expect(requests).toHaveLength(0);
+
+  await lab.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(endpointInput).toHaveValue("https://api.example.test/private/health");
+  expect(requests).toHaveLength(0);
+
+  const downloadPromise = page.waitForEvent("download");
+  await lab.getByRole("button", { name: "Export saved configs", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("network-state-saved-lab-configs.json");
+});
+
 test("synchronizes saved-config changes and corruption recovery across same-origin tabs", async ({ page, context }) => {
   const lab = page.getByRole("region", { name: "Network testing lab" });
   const secondTab = await context.newPage();
