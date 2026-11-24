@@ -268,7 +268,7 @@ function skipJavaScriptTemplateLiteral(source, position, templateDepth = 0) {
   if (source.charCodeAt(position) !== 96) throw new Error("Cannot audit malformed JavaScript template");
   let cursor = position + 1;
   while (cursor < source.length) {
-    if (source[cursor] === "\\\\") {
+    if (source[cursor] === "\\") {
       cursor += 2;
       continue;
     }
