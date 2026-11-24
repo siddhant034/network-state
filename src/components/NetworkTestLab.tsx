@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Activity, BookmarkPlus, FlaskConical, FolderOpen, Play, Square, Trash2 } from "lucide-react";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
-import { loadNetworkLabConfigs, NETWORK_LAB_CONFIG_STORAGE_KEY, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
+import { inspectNetworkLabConfigs, NETWORK_LAB_CONFIG_STORAGE_KEY, persistNetworkLabConfigs, removeNetworkLabConfig, saveNetworkLabConfig, type SavedNetworkLabConfig } from "../adapters/network-lab-configs";
 import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
 import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
 import "./NetworkLabConfigTransfer.css";
@@ -54,9 +54,11 @@ export function NetworkTestLab() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    try {
-      setSavedConfigs(loadNetworkLabConfigs(window.localStorage));
-    } catch {
+    const read = inspectNetworkLabConfigs(window.localStorage);
+    setSavedConfigs(read.configs);
+    if (read.status === "invalid") {
+      setError("Saved config storage contains invalid data. The valid entries are shown; review or clear the saved configs before saving again.");
+    } else if (read.status === "unavailable") {
       setError("Local storage is unavailable; saved configs cannot be loaded.");
     }
   }, []);
@@ -67,13 +69,22 @@ export function NetworkTestLab() {
       const storage = getLocalStorage();
       if (!storage || (event.storageArea && event.storageArea !== storage)) return;
 
-      const next = loadNetworkLabConfigs(storage);
+      const read = inspectNetworkLabConfigs(storage);
+      if (read.status === "invalid" || read.status === "unavailable") {
+        setError(read.status === "invalid"
+          ? "Saved config storage changed to invalid data in another tab. Your last valid list is preserved; inspect or clear the saved configs before saving again."
+          : "Saved config storage is unavailable. Your last valid list is preserved.");
+        setMessage("");
+        return;
+      }
+
+      const next = read.configs;
       setSavedConfigs(next);
       setSelectedConfigId((current) => next.some((config) => config.id === current) ? current : "");
       setShowDeleteConfirmation(false);
       setShowClearConfirmation(false);
       setError("");
-      setMessage(event.key === null
+      setMessage(read.status === "missing" || event.key === null
         ? "Saved configs were cleared in another tab."
         : "Saved configs updated in another tab.");
     };
