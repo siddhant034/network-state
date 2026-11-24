@@ -6,6 +6,8 @@ Run the real-browser smoke suite locally:
 npm install
 npx playwright install chromium firefox webkit
 npm run test:e2e
+# Run only the iPhone WebKit touch smoke test
+npm run test:e2e -- --project=webkit-iphone
 ```
 
 Playwright runs the desktop suite in Chromium, Firefox, and WebKit. A separate
