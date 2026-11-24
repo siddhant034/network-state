@@ -112,22 +112,11 @@ function tokenize(source) {
       continue;
     }
     if (character.charCodeAt(0) === 96) {
-      const start = cursor++;
-      let interpolation = false;
-      while (cursor < source.length) {
-        if (source[cursor] === "\\") {
-          cursor += 2;
-        } else if (source.charCodeAt(cursor) === 96) {
-          cursor++;
-          break;
-        } else {
-          if (source[cursor] === "$" && source[cursor + 1] === "{") interpolation = true;
-          cursor++;
-        }
-      }
-      if (source.charCodeAt(cursor - 1) !== 96) throw new Error("Unterminated JavaScript template literal");
+      const start = cursor;
+      cursor = skipJavaScriptTemplateLiteral(source, cursor);
       const raw = source.slice(start, cursor);
-      if (interpolation && /\bimport\s*\(/.test(raw)) {
+      const interpolation = extractTemplateExpressions(raw).length > 0;
+      if (interpolation && /\\bimport\\s*\\(/.test(raw)) {
         throw new Error("Cannot audit dynamic import inside a template literal");
       }
       tokens.push({ type: "template", value: raw });
@@ -274,7 +263,28 @@ function skipJavaScriptRegex(source, position) {
   throw new Error("Unterminated JavaScript regular expression in template expression");
 }
 
-function findTemplateExpressionEnd(source, position) {
+function skipJavaScriptTemplateLiteral(source, position, templateDepth = 0) {
+  if (templateDepth > 10) throw new Error("JavaScript template nesting exceeds 10");
+  if (source.charCodeAt(position) !== 96) throw new Error("Cannot audit malformed JavaScript template");
+  let cursor = position + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === "\\\\") {
+      cursor += 2;
+      continue;
+    }
+    if (source.charCodeAt(cursor) === 96) return cursor + 1;
+    if (source[cursor] === "$" && source[cursor + 1] === "{") {
+      const expressionEnd = findTemplateExpressionEnd(source, cursor + 2, templateDepth + 1);
+      cursor = expressionEnd + 1;
+      continue;
+    }
+    cursor++;
+  }
+  throw new Error("Unterminated JavaScript template literal");
+}
+
+function findTemplateExpressionEnd(source, position, templateDepth = 0) {
+  if (templateDepth > 10) throw new Error("JavaScript template nesting exceeds 10");
   let depth = 1;
   let cursor = position;
   while (cursor < source.length) {
@@ -284,7 +294,8 @@ function findTemplateExpressionEnd(source, position) {
       continue;
     }
     if (character.charCodeAt(0) === 96) {
-      throw new Error("Cannot audit nested template inside JavaScript template expression");
+      cursor = skipJavaScriptTemplateLiteral(source, cursor, templateDepth + 1);
+      continue;
     }
     if (character === "/" && source[cursor + 1] === "/") {
       cursor += 2;
