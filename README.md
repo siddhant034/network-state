@@ -48,7 +48,7 @@ npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab save, delete, clear, and malformed-storage recovery, keyboard cancellation of deletion, and import preview/apply privacy behavior. A dedicated iPhone 13 WebKit project additionally verifies touch input, the mobile viewport, overflow, and a save/load workflow using touch taps. CI runs separate desktop-engine and iPhone-WebKit jobs so one project's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
+The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab save, delete, clear, and malformed-storage recovery, keyboard cancellation of deletion, and import preview/apply privacy behavior. A dedicated iPhone 13 WebKit project additionally verifies touch input, the 390×844 emulated screen (allowing WebKit's smaller effective inner viewport when browser chrome is reserved), overflow, and a save/load workflow using touch taps. CI runs separate desktop-engine and iPhone-WebKit jobs so one project's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
 
 ## Browser API limitations
 
