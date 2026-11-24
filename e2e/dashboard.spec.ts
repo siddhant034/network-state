@@ -64,6 +64,48 @@ test("saves, reloads, and deletes a redacted lab configuration", async ({ page }
   await expect(lab.getByLabel("Saved configurations")).toHaveValue("");
 });
 
+test("synchronizes saved-config changes and corruption recovery across same-origin tabs", async ({ page, context }) => {
+  const lab = page.getByRole("region", { name: "Network testing lab" });
+  const secondTab = await context.newPage();
+  await secondTab.route("**/*", async (route) => {
+    const resourceType = route.request().resourceType();
+    if (resourceType === "fetch" || resourceType === "xhr") {
+      await route.fulfill({
+        status: 204,
+        headers: { "access-control-allow-origin": "*", "cache-control": "no-store" }
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await secondTab.goto(new URL("./", page.url()).toString());
+  const otherLab = secondTab.getByRole("region", { name: "Network testing lab" });
+  await expect(otherLab.getByLabel("Saved configurations")).toBeDisabled();
+
+  await lab.getByLabel("Test endpoints").fill("https://api.example.test/health?token=private-value");
+  await lab.getByLabel("Configuration name").fill("Shared config");
+  await lab.getByRole("button", { name: "Save configuration" }).click();
+  await expect(otherLab.getByLabel("Saved configurations")).toContainText("Shared config");
+
+  await lab.getByLabel("Configuration name").fill("Updated in another tab");
+  await lab.getByRole("button", { name: "Save configuration" }).click();
+  await expect(otherLab.getByLabel("Saved configurations")).toContainText("Updated in another tab");
+  await expect(otherLab.locator(".network-lab-message")).toContainText("updated in another tab");
+
+  await page.evaluate(() => {
+    localStorage.setItem("network-state:network-lab-configs:v1", "{broken");
+  });
+  await expect(otherLab.getByRole("option", { name: "Updated in another tab" })).toBeAttached();
+  await expect(otherLab.locator(".network-lab-error")).toContainText("last valid list is still shown");
+  await expect(otherLab.locator(".network-lab-error")).not.toContainText("private-value");
+
+  await page.evaluate(() => localStorage.clear());
+  await expect(otherLab.getByLabel("Saved configurations")).toBeDisabled();
+  await expect(otherLab.locator(".network-lab-message")).toContainText("cleared in another tab");
+  await expect(otherLab.getByRole("option", { name: "Updated in another tab" })).toHaveCount(0);
+  await secondTab.close();
+});
+
 test("runs a bounded lab request and reports the HTTP response", async ({ page }) => {
   const lab = page.getByRole("region", { name: "Network testing lab" });
   await lab.getByLabel("Requests / endpoint").selectOption("1");
