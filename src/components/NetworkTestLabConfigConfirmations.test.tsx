@@ -25,11 +25,11 @@ describe("saved-config destructive confirmations", () => {
     saveConfig("Office config");
     expect(readSaved()).toHaveLength(1);
 
-    const deleteTrigger = screen.getByRole("button", { name: "Delete", exact: true });
+    const deleteTrigger = screen.getByRole("button", { name: "Delete" });
     fireEvent.click(deleteTrigger);
     const confirmation = screen.getByRole("group", { name: "Delete saved config?" });
     expect(confirmation).toBeVisible();
-    expect(screen.getByRole("button", { name: "Cancel", exact: true })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("group", { name: "Delete saved config?" })).not.toBeInTheDocument();
@@ -37,7 +37,7 @@ describe("saved-config destructive confirmations", () => {
     expect(readSaved()).toHaveLength(1);
 
     fireEvent.click(deleteTrigger);
-    fireEvent.click(screen.getByRole("button", { name: "Delete saved config", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete saved config" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/deleted from this device/i);
     expect(readSaved()).toHaveLength(0);
     expect(screen.getByLabelText("Configuration name")).toHaveFocus();
@@ -50,11 +50,11 @@ describe("saved-config destructive confirmations", () => {
     saveConfig("Remote config");
     expect(readSaved()).toHaveLength(2);
 
-    const clearTrigger = screen.getByRole("button", { name: "Clear all", exact: true });
+    const clearTrigger = screen.getByRole("button", { name: "Clear all" });
     fireEvent.click(clearTrigger);
     const confirmation = screen.getByRole("group", { name: "Clear all saved configs?" });
     expect(confirmation).toBeVisible();
-    expect(screen.getByRole("button", { name: "Cancel", exact: true })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("group", { name: "Clear all saved configs?" })).not.toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("saved-config destructive confirmations", () => {
     expect(readSaved()).toHaveLength(2);
 
     fireEvent.click(clearTrigger);
-    fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete all saved configs" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/cleared from this device/i);
     expect(readSaved()).toHaveLength(0);
     expect(screen.getByLabelText("Configuration name")).toHaveFocus();
