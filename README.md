@@ -27,6 +27,8 @@ Network State turns browser network signals into a readable activity stream. It 
 - HTTP response availability, 2xx success rates, transport-failure rates, and per-source recovery-time analytics.
 - A correlated incident timeline that groups overlapping browser, reachability-probe, Fetch, and XHR outages, with source, severity, status, time-window, and text filters.
 - A repeatable network testing lab for comparing up to five endpoints with bounded concurrency, per-request timeouts, retries, and explicitly labelled client-side latency/failure simulation.
+- Portable JSON diagnostics snapshots and spreadsheet-safe CSV exports covering bounded event, request, probe, latency, reliability, incident, and network-lab histories.
+- Validated read-only import of prior snapshots so incident timelines can be reopened without merging historical data into the live session.
 - Request instrumentation distinguishes HTTP errors, transport failures, timeouts, and aborts while preserving original request behavior.
 
 ## Development
@@ -56,12 +58,15 @@ The app runs diagnostics locally. It does not transmit connection information or
 
 Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer. Reliability history stores only timestamp, source, and outcome in a bounded 500-observation in-memory buffer. Incident correlation derives from those normalized observations and browser connectivity events; it does not add request URLs, headers, or bodies. Both histories are cleared when the page is reloaded. The network testing lab sends credential-free GET requests only to endpoints the user enters, with a maximum of six concurrent requests and ten scheduled checks per endpoint per run, with up to two retries per check. It retains only the endpoint host label, result status, timing, and attempt count in its visible run history; endpoint paths and query strings are not copied into result records. Optional latency and failure simulation is applied only inside the lab runner and does not throttle or modify browser-wide traffic. A configured retry budget can increase actual HTTP attempts beyond the scheduled-check count. Use only endpoints you own or are authorized to test; cross-origin endpoints must allow this site through CORS.
 
+Diagnostics exports are generated locally and are not uploaded. URL paths are redacted by default because path segments can contain identifiers; users must explicitly opt in to include paths. Even with that option enabled, credentials, query strings, and fragments are always removed. JSON imports are limited to 1 MB, require the supported schema version, and are validated against bounded record counts before display. Imported sessions are read-only and remain separate from the current live session. Reports include locale and time-zone metadata, but omit user-agent strings and IP addresses. CSV cells are quoted and protected against spreadsheet formula injection.
+
 ## Architecture
 
 - `src/core`: browser-independent state model and monitoring contract.
 - `src/adapters`: reachability probes, opt-in Fetch/XHR instrumentation, and bounded network-lab execution.
 - `src/analytics`: bounded response-time and reliability histories, percentile summaries, availability rates, recovery calculations, incident correlation, and chart coordinates.
-- `src/components`: accessible reliability and incident-investigation presentation.
+- `src/components`: accessible reliability, incident-investigation, and diagnostics export/import presentation.
+- `src/diagnostics`: versioned snapshot creation, URL redaction, bounded import validation, and spreadsheet-safe CSV serialization.
 - `src/App.tsx`: React dashboard and user interactions.
 - `src/styles.css`: responsive visual system.
 
@@ -76,7 +81,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Latency history and trend visualization (in-memory, bounded, source- and time-filtered)
 - [x] Request success/failure rates, HTTP availability, and per-source recovery analytics (bounded, in-memory)
 - [x] Correlated incident timeline and investigation filters (source, severity, status, time window, and text)
-- [ ] Exportable diagnostics snapshot
+- [x] Exportable JSON diagnostics snapshot, CSV history, redaction, and validated read-only import
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [ ] Save and replay named testing-lab configurations
 - [ ] Cross-browser verification and accessible interaction polish
