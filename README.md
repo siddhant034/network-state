@@ -25,6 +25,7 @@ Network State turns browser network signals into a readable activity stream. It 
 - Opt-in Fetch and XMLHttpRequest instrumentation with response status, transport, method, and duration.
 - Bounded latency history with 5-minute, 30-minute, and 2-hour views, source filters, median, p95, average, and a trend chart.
 - HTTP response availability, 2xx success rates, transport-failure rates, and per-source recovery-time analytics.
+- A correlated incident timeline that groups overlapping browser, reachability-probe, Fetch, and XHR outages, with source, severity, status, time-window, and text filters.
 - Request instrumentation distinguishes HTTP errors, transport failures, timeouts, and aborts while preserving original request behavior.
 
 ## Development
@@ -52,14 +53,14 @@ npm run build
 
 The app runs diagnostics locally. It does not transmit connection information or request history to an analytics backend. Reachability probes are GET requests with browser credentials omitted, no referrer, and cache disabled. The configured endpoint is not copied into the diagnostic event history; only a generic probe label and outcome are retained locally. A custom cross-origin endpoint must allow this site through CORS. Any HTTP response (including 4xx/5xx) confirms that the endpoint responded; non-2xx responses are shown separately from network failures.
 
-Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer. Reliability history stores only timestamp, source, and outcome in a bounded 500-observation in-memory buffer. Both histories are cleared when the page is reloaded.
+Fetch/XHR instrumentation is off by default and starts only after an explicit user action. It never reads request or response bodies, headers, cookies, or query strings; URL fragments are also removed. The origin and path are retained locally for diagnosis, and paths can themselves contain identifiers, so enable instrumentation only on pages where that is acceptable. Uninstalling instrumentation restores the original methods and removes listeners for pending XHR requests. Latency history stores only response duration, timestamp, and source in a bounded 240-sample in-memory buffer. Reliability history stores only timestamp, source, and outcome in a bounded 500-observation in-memory buffer. Incident correlation derives from those normalized observations and browser connectivity events; it does not add request URLs, headers, or bodies. Both histories are cleared when the page is reloaded.
 
 ## Architecture
 
 - `src/core`: browser-independent state model and monitoring contract.
 - `src/adapters`: reachability probes and opt-in Fetch/XHR instrumentation.
-- `src/analytics`: bounded response-time and reliability histories, percentile summaries, availability rates, recovery calculations, and chart coordinates.
-- `src/components`: accessible reliability analytics presentation.
+- `src/analytics`: bounded response-time and reliability histories, percentile summaries, availability rates, recovery calculations, incident correlation, and chart coordinates.
+- `src/components`: accessible reliability and incident-investigation presentation.
 - `src/App.tsx`: React dashboard and user interactions.
 - `src/styles.css`: responsive visual system.
 
@@ -73,7 +74,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Fetch/XHR integration adapter with opt-in instrumentation
 - [x] Latency history and trend visualization (in-memory, bounded, source- and time-filtered)
 - [x] Request success/failure rates, HTTP availability, and per-source recovery analytics (bounded, in-memory)
-- [ ] Correlated incident timeline and investigation filters
+- [x] Correlated incident timeline and investigation filters (source, severity, status, time window, and text)
 - [ ] Exportable diagnostics snapshot
 - [ ] Network testing lab for repeatable endpoint and failure scenarios
 - [ ] Cross-browser verification and accessible interaction polish
