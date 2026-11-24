@@ -5,10 +5,14 @@ import {
   inspectSavedNetworkLabConfigs,
   loadSavedNetworkLabConfigs,
   NETWORK_LAB_CONFIG_STORAGE_KEY,
+  replaceSavedNetworkLabConfigs,
   saveNetworkLabConfig
 } from "../adapters/network-lab-configs";
+import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
+import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
 import "./NetworkTestLab.css";
+import "./NetworkLabConfigTransfer.css";
 
 const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
 const formatTime = (timestamp: number) => new Intl.DateTimeFormat(undefined, {
@@ -222,6 +226,16 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
     setConfigMessage("Saved configuration deleted from this device.");
   };
 
+  const handleImportConfigs = (imported: SavedNetworkLabConfig[]) => {
+    const merged = mergeImportedNetworkLabConfigs(savedConfigs, imported);
+    const persisted = replaceSavedNetworkLabConfigs(merged);
+    if (!persisted.ok) throw new Error(persisted.error);
+    setSavedConfigs(persisted.configs);
+    setSelectedConfigId(persisted.configs[0]?.id ?? "");
+    setConfigError("");
+    setConfigMessage("Imported saved configurations locally. Review them before running a test.");
+  };
+
   return (
     <section className="network-lab-panel" aria-labelledby="network-lab-title" role="region">
       <div className="network-lab-heading">
@@ -276,6 +290,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
         {configError && <p className="network-lab-error" role="alert">{configError}</p>}
         {configMessage && <p className="network-lab-message" role="status">{configMessage}</p>}
         <p className="network-lab-config-note">Saved configurations stay in this browser only. Query strings and fragments are removed before saving; endpoint paths remain and may contain identifiers.</p>
+        <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} disabled={running} />
       </div>
 
       <form className="network-lab-form" onSubmit={(event) => { void handleSubmit(event); }}>
