@@ -54,6 +54,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
   const selectedConfigIdRef = useRef(selectedConfigId);
   selectedConfigIdRef.current = selectedConfigId;
   const savedConfigSelectRef = useRef<HTMLSelectElement | null>(null);
+  const configNameInputRef = useRef<HTMLInputElement | null>(null);
   const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
   const clearCancelRef = useRef<HTMLButtonElement | null>(null);
   const confirmationReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -74,7 +75,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
         const target = confirmationReturnFocusRef.current;
         confirmationReturnFocusRef.current = null;
         if (target && !("disabled" in target && Boolean((target as HTMLButtonElement).disabled))) target.focus();
-        else savedConfigSelectRef.current?.focus();
+        else configNameInputRef.current?.focus();
       }
       return;
     }
@@ -299,6 +300,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
           <label>
             <span>Configuration name</span>
             <input
+              ref={configNameInputRef}
               aria-label="Configuration name"
               value={configName}
               onChange={(event) => setConfigName(event.target.value)}
@@ -310,7 +312,9 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
           <button type="button" onClick={handleSaveConfig} disabled={running || !configName.trim() || parsed.errors.length > 0 || parsed.endpoints.length === 0}>
             <Save size={13} /> Save configuration
           </button>
-          <button className="network-lab-new-config" type="button" onClick={() => {
+          <button className="network-lab-new-config" type="button" onClick={(event) => {
+            confirmationReturnFocusRef.current = event.currentTarget;
+            setConfirmation(null);
             setSelectedConfigId("");
             setConfigName("");
             setConfigError("");
