@@ -48,7 +48,7 @@ npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab updates, keyboard cancellation of deletion, and import preview/apply privacy behavior. CI runs a separate browser matrix so an engine's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
+The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence and same-origin cross-tab save, delete, and clear updates, keyboard cancellation of deletion, and import preview/apply privacy behavior. CI runs a separate browser matrix so an engine's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
 
 ## Browser API limitations
 

@@ -95,6 +95,38 @@ test("saved config changes in one tab update the other tab", async ({ page }) =>
   await otherTab.close();
 });
 
+
+test("clearing configs in one tab clears the other tab without exposing endpoints", async ({ page }) => {
+  const endpoint = "https://api.example.test/cross-tab/clear?token=clear-private";
+  const otherTab = await page.context().newPage();
+
+  await Promise.all([page.goto("/"), otherTab.goto("/")]);
+  await page.getByLabel("Test endpoints").fill(endpoint);
+  await page.getByLabel("Config name").fill("Cross-tab clear config");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(otherTab.getByRole("option", { name: "Cross-tab clear config" })).toBeAttached();
+
+  const clearTrigger = page.getByRole("button", { name: "Clear all", exact: true });
+  await clearTrigger.click();
+  const confirmation = page.getByRole("group", { name: "Clear all saved configs?" });
+  await expect(confirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.getByRole("button", { name: "Delete all saved configs", exact: true }).click();
+
+  await expect(otherTab.getByRole("option", { name: "Cross-tab clear config" })).toHaveCount(0);
+  await expect(otherTab.locator(".network-lab-message")).toContainText(
+    "Saved configs were cleared in another tab."
+  );
+  await expect(otherTab.locator(".network-lab-message")).not.toContainText("/cross-tab/clear");
+  await expect(otherTab.locator(".network-lab-message")).not.toContainText("clear-private");
+
+  const stored = await otherTab.evaluate((key) => window.localStorage.getItem(key), storageKey);
+  expect(stored).toBeNull();
+
+  // Clearing configs only synchronizes browser-local saved state; it never runs a test.
+  await expect(otherTab.getByRole("button", { name: "Run test" })).toBeEnabled();
+  await otherTab.close();
+});
+
 test("import preview never applies a file until Apply import is selected", async ({ page }) => {
   const sensitiveEndpoint = "https://api.example.test/private/health?token=do-not-display";
   const fixture = {
