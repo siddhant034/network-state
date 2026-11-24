@@ -5,10 +5,14 @@ import {
   inspectSavedNetworkLabConfigs,
   loadSavedNetworkLabConfigs,
   NETWORK_LAB_CONFIG_STORAGE_KEY,
+  persistSavedNetworkLabConfigs,
   saveNetworkLabConfig
 } from "../adapters/network-lab-configs";
+import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
+import { NetworkLabConfigTransfer } from "./NetworkLabConfigTransfer";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 import "./NetworkTestLab.css";
+import "./NetworkLabConfigTransfer.css";
 
 const defaultEndpoint = () => new URL(import.meta.env.BASE_URL, window.location.href).toString();
 const formatTime = (timestamp: number) => new Intl.DateTimeFormat(undefined, {
@@ -207,6 +211,17 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
     setConfigMessage("Loaded “" + config.name + "”. Run the test when you are ready.");
   };
 
+  const handleImportConfigs = (imported: SavedNetworkLabConfig[]) => {
+    const merged = mergeImportedNetworkLabConfigs(savedConfigs, imported);
+    const persisted = persistSavedNetworkLabConfigs(merged);
+    if (!persisted.ok) throw new Error(persisted.error);
+    setSavedConfigs(persisted.configs);
+    setSelectedConfigId("");
+    setConfigName("");
+    setConfigError("");
+    setConfigMessage("Saved configs imported. Nothing was run.");
+  };
+
   const handleDeleteConfig = () => {
     if (!selectedConfigId) return;
     const deleted = deleteNetworkLabConfig(selectedConfigId);
@@ -273,6 +288,7 @@ export function NetworkTestLab({ onResultsChange }: { onResultsChange?: (results
             <Trash2 size={13} /> Delete
           </button>
         </div>
+        <NetworkLabConfigTransfer configs={savedConfigs} onImport={handleImportConfigs} disabled={running} />
         {configError && <p className="network-lab-error" role="alert">{configError}</p>}
         {configMessage && <p className="network-lab-message" role="status">{configMessage}</p>}
         <p className="network-lab-config-note">Saved configurations stay in this browser only. Query strings and fragments are removed before saving; endpoint paths remain and may contain identifiers.</p>
