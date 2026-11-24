@@ -154,24 +154,29 @@ export function inspectSavedNetworkLabConfigs(
   } catch {
     return { status: "invalid", configs: [] };
   }
-  if (!Array.isArray(value) || value.length > MAX_SAVED_NETWORK_LAB_CONFIGS) {
-    return { status: "invalid", configs: [] };
-  }
+  if (!Array.isArray(value)) return { status: "invalid", configs: [] };
 
   const configs: SavedNetworkLabConfig[] = [];
   const ids = new Set<string>();
   const names = new Set<string>();
-  for (const item of value) {
+  let invalid = value.length > MAX_SAVED_NETWORK_LAB_CONFIGS;
+  for (const item of value.slice(0, MAX_SAVED_NETWORK_LAB_CONFIGS)) {
     const normalized = normalizeConfig(item, false)?.config;
-    if (!normalized) return { status: "invalid", configs: [] };
+    if (!normalized) {
+      invalid = true;
+      continue;
+    }
     const nameKey = normalized.name.toLowerCase();
-    if (ids.has(normalized.id) || names.has(nameKey)) return { status: "invalid", configs: [] };
+    if (ids.has(normalized.id) || names.has(nameKey)) {
+      invalid = true;
+      continue;
+    }
     ids.add(normalized.id);
     names.add(nameKey);
     configs.push(normalized);
   }
 
-  return { status: "ok", configs };
+  return { status: invalid ? "invalid" : "ok", configs };
 }
 
 function readConfigs(storage: StorageLike | null): SavedNetworkLabConfig[] {
