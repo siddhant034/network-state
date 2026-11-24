@@ -227,6 +227,15 @@ describe("NetworkTestLab", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Saved configs")).toBeDisabled());
     expect(screen.queryByRole("option", { name: "Updated in another tab" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
+
+    // A true Storage.clear() event has a null key and gets the clear-specific message.
+    window.localStorage.clear();
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: null,
+      newValue: null,
+      storageArea: window.localStorage
+    }));
     expect(await screen.findByRole("status")).toHaveTextContent(/cleared in another tab/);
   });
 
