@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inspectNetworkLabConfigs,
   loadNetworkLabConfigs,
   MAX_SAVED_NETWORK_LAB_CONFIGS,
   NETWORK_LAB_CONFIG_STORAGE_KEY,
@@ -79,6 +80,13 @@ describe("named network lab configs", () => {
     expect(loadNetworkLabConfigs(corrupt)).toHaveLength(1);
     expect(loadNetworkLabConfigs(memoryStorage("{broken"))).toEqual([]);
     expect(loadNetworkLabConfigs(memoryStorage(JSON.stringify({ schemaVersion: 9, configs })))).toEqual([]);
+  });
+
+  it("distinguishes a missing record from invalid data and unavailable storage", () => {
+    expect(inspectNetworkLabConfigs(memoryStorage()).status).toBe("missing");
+    expect(inspectNetworkLabConfigs(memoryStorage("{broken")).status).toBe("invalid");
+    expect(inspectNetworkLabConfigs(memoryStorage(JSON.stringify({ schemaVersion: 9, configs: [] }))).status).toBe("invalid");
+    expect(inspectNetworkLabConfigs({ getItem: () => { throw new Error("blocked"); } }).status).toBe("unavailable");
   });
 
   it("reports storage failures without throwing", () => {
