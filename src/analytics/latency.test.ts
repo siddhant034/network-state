@@ -34,7 +34,7 @@ describe("latency analytics", () => {
     const original = [sample(1, 10)];
     expect(appendLatencySample(original, sample(Number.NaN, 20))).toBe(original);
     expect(appendLatencySample(original, sample(2, Number.POSITIVE_INFINITY))).toBe(original);
-    expect(appendLatencySample(original, { timestamp: 2, durationMs: 20, source: "other" } as LatencySample)).toBe(original);
+    expect(appendLatencySample(original, { timestamp: 2, durationMs: 20, source: "other" } as unknown as LatencySample)).toBe(original);
   });
 
   it("filters by time range and source without mutating the history", () => {
