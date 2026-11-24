@@ -850,9 +850,13 @@ test("audits network calls inside template expressions without scanning template
     extractJavaScriptNetworkUrls('const value = `object: ${({ close: "}", ok: fetch("/same-origin") }).ok}`;'),
     ["/same-origin"],
   );
-  assert.throws(
-    () => extractJavaScriptNetworkUrls('const value = `nested ${`inner`}`;'),
-    /Cannot audit nested template/,
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls('const value = `nested ${`inner ${fetch("https://tracker.example/deep")}`}`;'),
+    ["https://tracker.example/deep"],
+  );
+  assert.deepEqual(
+    extractJavaScriptNetworkUrls('const value = `nested ${`literal fetch("https://ignored.example")`}`;'),
+    [],
   );
 });
 
