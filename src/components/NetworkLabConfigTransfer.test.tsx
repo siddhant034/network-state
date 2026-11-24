@@ -44,6 +44,38 @@ describe("NetworkLabConfigTransfer", () => {
     expect(onImport).toHaveBeenCalledWith([config]);
   });
 
+  it("focuses Cancel first, dismisses with Escape, and restores focus without importing", async () => {
+    const onImport = vi.fn();
+    render(<NetworkLabConfigTransfer configs={[]} onImport={onImport} />);
+    const input = screen.getByLabelText("Import saved configs");
+
+    fireEvent.change(input, { target: { files: [importFile()] } });
+
+    expect(await screen.findByRole("region", { name: "Import preview" })).toBeInTheDocument();
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(cancel).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("region", { name: "Import preview" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Import cancelled/);
+    expect(input).toHaveFocus();
+    expect(onImport).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to the file input when the preview is cancelled by button", async () => {
+    const onImport = vi.fn();
+    render(<NetworkLabConfigTransfer configs={[]} onImport={onImport} />);
+    const input = screen.getByLabelText("Import saved configs");
+
+    fireEvent.change(input, { target: { files: [importFile()] } });
+    await screen.findByRole("region", { name: "Import preview" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(input).toHaveFocus();
+    expect(onImport).not.toHaveBeenCalled();
+  });
+
   it("shows update and add counts without exposing endpoint URLs in the preview", async () => {
     const existing = { ...config, id: "local-office" };
     const added = { ...config, id: "remote", name: "Remote" };
