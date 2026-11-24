@@ -6,7 +6,8 @@ import {
   loadSavedNetworkLabConfigs,
   NETWORK_LAB_CONFIG_STORAGE_KEY,
   replaceSavedNetworkLabConfigs,
-  saveNetworkLabConfig
+  saveNetworkLabConfig,
+  type SavedNetworkLabConfig
 } from "../adapters/network-lab-configs";
 import { mergeImportedNetworkLabConfigs } from "../adapters/network-lab-config-transfer";
 import { parseNetworkLabEndpoints, runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
