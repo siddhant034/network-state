@@ -65,6 +65,18 @@ npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
+The suite also includes a dedicated iPhone 13 WebKit project for touch-driven
+saved-configuration save/load and responsive overflow checks at a 390×844
+emulated screen. Run it alone with:
+
+```bash
+npm run test:e2e -- --project=webkit-iphone
+```
+
+The mobile test uses reserved `.test` endpoints, verifies query strings are
+removed before local persistence, and never starts a diagnostic request. This
+is browser emulation, not physical-device certification.
+
 The automated audit is a baseline, not a complete accessibility certification. Manual keyboard and screen-reader review, plus WCAG AA color-contrast verification, remain release checks.
 
 ## Browser API limitations
