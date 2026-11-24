@@ -1,0 +1,22 @@
+.network-lab-config-transfer{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.network-lab-transfer-button,.network-lab-transfer-file{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #344756;border-radius:7px;background:#1a2935;color:#c0d1df;font:600 9px Manrope,sans-serif;white-space:nowrap;cursor:pointer}
+.network-lab-transfer-button.primary{border-color:#365848;background:#193529;color:#bde8cd}
+.network-lab-transfer-button:disabled,.network-lab-transfer-file[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.network-lab-transfer-file{position:relative;overflow:hidden}
+.network-lab-transfer-file input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.network-lab-transfer-file[aria-disabled="true"] input{cursor:not-allowed}
+.network-lab-transfer-button:focus-visible,.network-lab-transfer-file:focus-within{outline:2px solid #5d9a80;outline-offset:3px}
+.network-lab-transfer-error,.network-lab-transfer-status{flex-basis:100%;margin:0;font-size:9px;line-height:1.55}
+.network-lab-transfer-error{color:#efb0aa}
+.network-lab-transfer-status{color:#9cdbb8}
+.network-lab-transfer-preview{flex-basis:100%;min-width:0;padding:12px;border:1px solid #2b3c47;border-radius:8px;background:#0d151d;font-size:10px}
+.network-lab-transfer-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.network-lab-transfer-preview-heading strong{color:#d7e2ea}
+.network-lab-transfer-preview-heading strong:focus{outline:2px solid #5d9a80;outline-offset:3px;border-radius:2px}
+.network-lab-transfer-preview p{margin:8px 0;color:#9aa9b7;line-height:1.55}
+.network-lab-transfer-preview ul{list-style:none;padding:0;margin:8px 0;max-height:180px;overflow:auto}
+.network-lab-transfer-preview li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #243440;overflow-wrap:anywhere}
+.network-lab-transfer-preview li span:last-child{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#8e9eac}
+.network-lab-transfer-preview .network-lab-transfer-warning{color:#e5c58c}
+.network-lab-transfer-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+@media(max-width:520px){.network-lab-transfer-button,.network-lab-transfer-file{flex:1 1 auto;min-width:0}.network-lab-transfer-preview li{align-items:flex-start;flex-direction:column;gap:4px}}
