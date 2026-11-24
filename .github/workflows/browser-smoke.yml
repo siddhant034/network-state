@@ -3,7 +3,7 @@ name: Browser smoke
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'test/**']
 
 permissions:
   contents: read
