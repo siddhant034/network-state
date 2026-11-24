@@ -62,3 +62,4 @@
 
 @media(max-width:700px){.network-lab-panel{padding:17px;margin-bottom:28px}.network-lab-heading{align-items:flex-start}.network-lab-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.network-lab-actions{align-items:flex-start;flex-direction:column}.network-lab-buttons{width:100%}.network-lab-run,.network-lab-cancel{flex:1}.network-lab-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.network-lab-controls{grid-template-columns:1fr}.network-lab-endpoints>span{align-items:flex-start;flex-direction:column;gap:4px}}
+
