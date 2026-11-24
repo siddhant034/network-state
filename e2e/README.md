@@ -30,6 +30,8 @@ saved-config save/update propagation, corrupt-storage recovery without losing
 the last valid list, and cross-tab clear behavior. Storage events do not start
 diagnostic requests; the test never presses **Run test**.
 
+The desktop dashboard suite also checks saved-config controls at a narrow 320px viewport, including panel bounds, save/load, query redaction, and no outbound request to the fixture.
+
 All fixtures use reserved `.test` endpoints. The test checks that query
 strings are stripped before persistence and never presses **Run test** or
 sends a request to the fixture endpoint. It does not prove behavior on a
