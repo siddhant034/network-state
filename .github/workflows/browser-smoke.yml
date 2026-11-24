@@ -14,7 +14,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        include:
+          - project: chromium
+            engine: chromium
+          - project: firefox
+            engine: firefox
+          - project: webkit
+            engine: webkit
+          - project: webkit-iphone
+            engine: webkit
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -25,6 +33,6 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Install browser and system dependencies
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.engine }}
       - name: Run browser smoke tests
-        run: npm run test:e2e -- --project=${{ matrix.browser }}
+        run: npm run test:e2e -- --project=${{ matrix.project }}
