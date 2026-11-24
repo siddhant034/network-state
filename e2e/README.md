@@ -15,10 +15,14 @@ Vitest suite remains the fast unit/component check; these tests exercise
 browser storage and keyboard interactions in actual browser engines.
 
 The suite uses reserved `.test` hostnames and never presses **Run test**. It
-checks that saved endpoint URLs remain local, delete cancellation does not
-mutate storage, and imported endpoint details are not shown in the preview.
-The import fixture is only written to local storage after explicit
-**Apply import** confirmation.
+checks saved-config persistence, keyboard confirmation focus and cancellation,
+and import preview privacy. Delete and clear confirmations focus Cancel first
+and restore focus to their trigger after Escape. Import preview focuses Cancel
+first and returns focus to the file input after Escape or Apply import.
+
+Saved endpoint URLs remain in local storage and are not printed into the
+preview. The import fixture is only written to local storage after explicit
+**Apply import** confirmation. Imported configs never run automatically.
 
 A failure in one engine does not cancel the other matrix jobs, so CI reports
 browser-specific compatibility results rather than hiding later failures.
