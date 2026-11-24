@@ -20,7 +20,7 @@ test("saved configs persist across reload and deletion requires confirmation", a
   expect(savedBeforeReload?.configs[0]?.endpoints).toContain(endpoint);
 
   await page.reload();
-  const savedConfigs = page.getByLabel("Saved configs");
+  const savedConfigs = page.getByLabel("Saved configs", { exact: true });
   await expect(page.getByRole("option", { name: "Browser smoke config" })).toBeAttached();
   await savedConfigs.selectOption({ label: "Browser smoke config" });
   await page.getByRole("button", { name: "Load", exact: true }).click();
