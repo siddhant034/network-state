@@ -34,7 +34,7 @@ describe("NetworkLabConfigTransfer", () => {
 
     fireEvent.change(screen.getByLabelText("Import saved configs"), { target: { files: [importFile()] } });
 
-    expect(await screen.findByRole("region", { name: "Import preview" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Review import" })).toBeInTheDocument();
     expect(screen.getByText(/1 new config will be added/)).toBeInTheDocument();
     expect(onImport).not.toHaveBeenCalled();
 
@@ -51,13 +51,13 @@ describe("NetworkLabConfigTransfer", () => {
 
     fireEvent.change(input, { target: { files: [importFile()] } });
 
-    expect(await screen.findByRole("region", { name: "Import preview" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Review import" })).toBeInTheDocument();
     const cancel = screen.getByRole("button", { name: "Cancel" });
     expect(cancel).toHaveFocus();
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("region", { name: "Import preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Review import" })).not.toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(/Import cancelled/);
     expect(input).toHaveFocus();
     expect(onImport).not.toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("NetworkLabConfigTransfer", () => {
     const input = screen.getByLabelText("Import saved configs");
 
     fireEvent.change(input, { target: { files: [importFile()] } });
-    await screen.findByRole("region", { name: "Import preview" });
+    await screen.findByRole("region", { name: "Review import" });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(input).toHaveFocus();
@@ -86,7 +86,7 @@ describe("NetworkLabConfigTransfer", () => {
       target: { files: [importFile([config, added])] }
     });
 
-    expect(await screen.findByRole("region", { name: "Import preview" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Review import" })).toBeInTheDocument();
     expect(screen.getByText(/1 existing config will be updated · 1 new config will be added/)).toBeInTheDocument();
     expect(screen.queryByText(/api\.example\.test/)).not.toBeInTheDocument();
     expect(onImport).not.toHaveBeenCalled();
@@ -96,25 +96,25 @@ describe("NetworkLabConfigTransfer", () => {
     const onImport = vi.fn();
     render(<NetworkLabConfigTransfer configs={[]} onImport={onImport} />);
     fireEvent.change(screen.getByLabelText("Import saved configs"), { target: { files: [importFile()] } });
-    await screen.findByRole("region", { name: "Import preview" });
+    await screen.findByRole("region", { name: "Review import" });
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onImport).not.toHaveBeenCalled();
     expect(await screen.findByRole("status")).toHaveTextContent(/Import cancelled/);
-    expect(screen.queryByRole("region", { name: "Import preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Review import" })).not.toBeInTheDocument();
   });
 
   it("keeps the preview available when applying fails", async () => {
     const onImport = vi.fn(() => { throw new Error("storage quota"); });
     render(<NetworkLabConfigTransfer configs={[]} onImport={onImport} />);
     fireEvent.change(screen.getByLabelText("Import saved configs"), { target: { files: [importFile()] } });
-    await screen.findByRole("region", { name: "Import preview" });
+    await screen.findByRole("region", { name: "Review import" });
 
     fireEvent.click(screen.getByRole("button", { name: "Apply import" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("storage quota");
-    expect(screen.getByRole("region", { name: "Import preview" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Review import" })).toBeInTheDocument();
   });
 
   it("reports invalid files without invoking the import callback", async () => {
