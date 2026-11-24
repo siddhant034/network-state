@@ -102,5 +102,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Exercise core flows on the published site
         env:
-          PAGES_URL: \${{ needs.deploy.outputs.page_url }}
+          PAGES_URL: ${{ needs.deploy.outputs.page_url }}
         run: node scripts/pages-live-browser-smoke.mjs
