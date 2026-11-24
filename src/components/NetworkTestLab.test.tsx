@@ -194,6 +194,42 @@ describe("NetworkTestLab", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/All saved configs cleared/);
   });
 
+  it("refreshes saved configs when another tab updates or clears local storage", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Shared config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    const raw = window.localStorage.getItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw!) as { schemaVersion: number; configs: Array<{ id: string; name: string; updatedAt: number }> };
+    stored.configs[0].name = "Updated in another tab";
+    stored.configs[0].updatedAt += 1;
+    const updatedValue = JSON.stringify(stored);
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, updatedValue);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: updatedValue,
+      storageArea: window.localStorage
+    }));
+
+    expect(await screen.findByRole("option", { name: "Updated in another tab" })).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
+
+    window.localStorage.removeItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: null,
+      storageArea: window.localStorage
+    }));
+
+    await waitFor(() => expect(screen.getByLabelText("Saved configs")).toBeDisabled());
+    expect(screen.queryByRole("option", { name: "Updated in another tab" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/cleared in another tab/);
+  });
+
   it("aborts the active run when the user cancels it", async () => {
     let capturedSignal: AbortSignal | undefined;
     let finishRun: (() => void) | undefined;
