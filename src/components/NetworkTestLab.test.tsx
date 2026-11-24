@@ -216,7 +216,7 @@ describe("NetworkTestLab", () => {
     }));
 
     expect(await screen.findByRole("option", { name: "Updated in another tab" })).toBeInTheDocument();
-    expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/updated in another tab/));
 
     window.localStorage.removeItem(NETWORK_LAB_CONFIG_STORAGE_KEY);
     window.dispatchEvent(new StorageEvent("storage", {
@@ -227,7 +227,7 @@ describe("NetworkTestLab", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Saved configs")).toBeDisabled());
     expect(screen.queryByRole("option", { name: "Updated in another tab" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/cleared in another tab/));
 
     // A true Storage.clear() event has a null key and gets the clear-specific message.
     window.localStorage.clear();
@@ -236,7 +236,7 @@ describe("NetworkTestLab", () => {
       newValue: null,
       storageArea: window.localStorage
     }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/cleared in another tab/);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/cleared in another tab/));
   });
 
   it("clears a stale selection and confirmation after another tab deletes the selected config", async () => {
@@ -287,7 +287,7 @@ describe("NetworkTestLab", () => {
 
     expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
     expect(select).toBeEnabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/changed to invalid data in another tab/i);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/changed to invalid data in another tab/i));
     expect(screen.queryByText(/updated in another tab/i)).not.toBeInTheDocument();
   });
 
