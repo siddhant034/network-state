@@ -44,11 +44,11 @@ Run checks:
 ```bash
 npm test
 npm run build
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-The Playwright suite launches a real Chromium browser and checks saved-config persistence, keyboard cancellation of deletion, and import preview/apply privacy behavior. See [browser smoke test notes](e2e/README.md) for scope and setup.
+The Playwright suite launches real Chromium, Firefox, and WebKit engines and checks saved-config persistence, keyboard cancellation of deletion, and import preview/apply privacy behavior. CI runs a separate browser matrix so an engine's failure does not hide results from the others. See [browser smoke test notes](e2e/README.md) for scope and setup.
 
 ## Browser API limitations
 
@@ -86,7 +86,8 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 - [x] Exportable diagnostics snapshot (versioned JSON, bounded histories, destination/detail redaction)
 - [x] Network testing lab: repeatable endpoint comparisons, bounded concurrency, retries, and client-side latency/failure simulation
 - [x] Save and replay named testing-lab configurations (explicit local save, versioned storage, bounded count, validated load/delete)
-- [ ] Cross-browser verification and accessible interaction polish
+- [x] Cross-browser smoke coverage for saved-config persistence, deletion confirmation, and import privacy in Chromium, Firefox, and WebKit
+- [ ] Full manual accessibility review and additional browser/device coverage
 - [ ] Public demo deployment
 
 ## License
