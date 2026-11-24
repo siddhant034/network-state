@@ -109,6 +109,13 @@ describe("saved network lab configurations", () => {
 
     saveNetworkLabConfig(makeConfig(), storage);
     expect(inspectSavedNetworkLabConfigs(storage)).toMatchObject({ status: "ok", configs: [{ id: "config-1" }] });
+    const validConfig = loadSavedNetworkLabConfigs(storage)[0];
+    storage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, JSON.stringify([
+      validConfig,
+      { ...validConfig, id: "config-2", name: "Corrupt", endpointInput: "https://api.example.test/health?token=must-not-load" }
+    ]));
+    expect(inspectSavedNetworkLabConfigs(storage)).toMatchObject({ status: "invalid", configs: [validConfig] });
+    expect(loadSavedNetworkLabConfigs(storage)).toEqual([validConfig]);
 
     storage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, "{broken");
     expect(inspectSavedNetworkLabConfigs(storage)).toMatchObject({ status: "invalid", configs: [] });
