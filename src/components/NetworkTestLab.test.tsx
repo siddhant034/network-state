@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NetworkTestLab } from "./NetworkTestLab";
+import { NETWORK_LAB_CONFIG_STORAGE_KEY } from "../adapters/network-lab-configs";
 import { runNetworkLab, type NetworkLabResult } from "../adapters/network-test-lab";
 
 vi.mock("../adapters/network-test-lab", async (importOriginal) => {
