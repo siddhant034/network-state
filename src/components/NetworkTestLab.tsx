@@ -54,7 +54,12 @@ export function NetworkTestLab() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    const read = inspectNetworkLabConfigs(window.localStorage);
+    const storage = getLocalStorage();
+    if (!storage) {
+      setError("Local storage is unavailable; saved configs cannot be loaded.");
+      return;
+    }
+    const read = inspectNetworkLabConfigs(storage);
     setSavedConfigs(read.configs);
     if (read.status === "invalid") {
       setError("Saved config storage is invalid. Valid entries, if any, are shown; saving a config will replace the malformed record with a validated record.");
