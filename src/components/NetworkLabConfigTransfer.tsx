@@ -80,7 +80,7 @@ export function NetworkLabConfigTransfer({
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
       setError("");
       setStatus("Saved configs exported. The file contains endpoint paths; keep it private.");
     } catch {
