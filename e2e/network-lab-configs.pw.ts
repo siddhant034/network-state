@@ -40,7 +40,7 @@ test("saved configs persist across reload and deletion requires confirmation", a
 
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Delete saved config" }).click();
-  await expect(page.getByRole("status")).toContainText("Saved config deleted from this browser.");
+  await expect(page.locator(".network-lab-message")).toContainText("Saved config deleted from this browser.");
   const afterDelete = await page.evaluate((key) => {
     const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) as { configs: unknown[] } : null;
