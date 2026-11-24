@@ -179,6 +179,51 @@ export function inspectSavedNetworkLabConfigs(
   return { status: invalid ? "invalid" : "ok", configs };
 }
 
+export function validateSavedNetworkLabConfig(value: unknown): SavedNetworkLabConfig | null {
+  return normalizeConfig(value, false)?.config ?? null;
+}
+
+export type PersistSavedNetworkLabConfigsResult =
+  | { ok: true; configs: SavedNetworkLabConfig[] }
+  | { ok: false; error: string };
+
+/** Persist a fully validated config list in one storage write (used by import). */
+export function persistSavedNetworkLabConfigs(
+  configs: SavedNetworkLabConfig[],
+  storage: StorageLike | null = getBrowserStorage()
+): PersistSavedNetworkLabConfigsResult {
+  if (!storage) return { ok: false, error: "Local storage is unavailable in this browser context." };
+  if (configs.length > MAX_SAVED_NETWORK_LAB_CONFIGS) {
+    return { ok: false, error: "You can save up to ten configurations." };
+  }
+
+  const normalized: SavedNetworkLabConfig[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const item of configs) {
+    const config = validateSavedNetworkLabConfig(item);
+    if (!config) return { ok: false, error: "A saved configuration is invalid and could not be imported." };
+    const name = config.name.toLowerCase();
+    if (ids.has(config.id) || names.has(name)) {
+      return { ok: false, error: "Saved configurations must have unique names and identifiers." };
+    }
+    ids.add(config.id);
+    names.add(name);
+    normalized.push(config);
+  }
+
+  const serialized = JSON.stringify(normalized);
+  if (serialized.length > MAX_NETWORK_LAB_CONFIG_STORAGE_CHARS) {
+    return { ok: false, error: "These configurations exceed the local storage limit." };
+  }
+  try {
+    storage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, serialized);
+    return { ok: true, configs: normalized };
+  } catch {
+    return { ok: false, error: "The browser could not save imported configurations." };
+  }
+}
+
 function readConfigs(storage: StorageLike | null): SavedNetworkLabConfig[] {
   return inspectSavedNetworkLabConfigs(storage).configs;
 }
