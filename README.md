@@ -93,3 +93,7 @@ The core is intentionally framework-agnostic so it can be reused by a browser ex
 ## License
 
 MIT
+
+## Release readiness
+
+Before declaring the public demo ready, complete the [final production release checklist](docs/FINAL_RELEASE_CHECKLIST.md), including the exact-main CI matrix, privacy checks, successful Pages deployment, and live-site acceptance.
