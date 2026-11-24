@@ -267,6 +267,30 @@ describe("NetworkTestLab", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/updated in another tab/);
   });
 
+  it("preserves the last valid config list when another tab writes corrupt storage", async () => {
+    render(<NetworkTestLab />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Config name" }), {
+      target: { value: "Last valid config" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    const select = screen.getByLabelText("Saved configs");
+    expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
+
+    window.localStorage.setItem(NETWORK_LAB_CONFIG_STORAGE_KEY, "{broken");
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: NETWORK_LAB_CONFIG_STORAGE_KEY,
+      newValue: "{broken",
+      storageArea: window.localStorage
+    }));
+
+    expect(screen.getByRole("option", { name: "Last valid config" })).toBeInTheDocument();
+    expect(select).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/changed to invalid data in another tab/i);
+    expect(screen.queryByRole("status")).not.toHaveTextContent(/updated in another tab/i);
+  });
+
   it("aborts the active run when the user cancels it", async () => {
     let capturedSignal: AbortSignal | undefined;
     let finishRun: (() => void) | undefined;
