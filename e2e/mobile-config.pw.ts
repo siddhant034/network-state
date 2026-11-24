@@ -13,13 +13,18 @@ test("iPhone WebKit touch viewport can save and reload a config without running 
   const environment = await page.evaluate(() => ({
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
+    screenHeight: window.screen.height,
     documentWidth: document.documentElement.scrollWidth,
     touchPoints: navigator.maxTouchPoints,
     coarsePointer: window.matchMedia("(pointer: coarse)").matches
   }));
 
   expect(environment.viewportWidth).toBe(390);
-  expect(environment.viewportHeight).toBe(844);
+  // iOS WebKit reserves part of the device viewport for browser chrome; assert
+  // the emulated screen size separately and allow the effective layout viewport.
+  expect(environment.screenHeight).toBe(844);
+  expect(environment.viewportHeight).toBeGreaterThan(600);
+  expect(environment.viewportHeight).toBeLessThanOrEqual(environment.screenHeight);
   expect(environment.documentWidth).toBeLessThanOrEqual(environment.viewportWidth);
   expect(environment.touchPoints).toBeGreaterThan(0);
   expect(environment.coarsePointer).toBe(true);
